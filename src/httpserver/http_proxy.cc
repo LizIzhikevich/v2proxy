@@ -20,6 +20,7 @@
 #include "secure_socket.hh"
 #include "backing_store.hh"
 #include "exception.hh"
+#include "v2filter.hh"
 
 using namespace std;
 using namespace PollerShortNames;
@@ -70,7 +71,8 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
                                            request_parser.pop();
                                            return ResultType::Continue;
                                        },
-                                       [&] () { return not request_parser.empty(); } ) );
+       				       /* deliver the packet to the server only if it passes the v2 filter */
+                                       [&] () { return v2filter(request_parser); } ) );
 
     /* completed responses from server are serialized and sent to client */
     poller.add_action( Poller::Action( client, Direction::Out,
