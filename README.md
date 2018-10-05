@@ -1,1 +1,1 @@
-mahimahi: a web performance measurement toolkit
+v2proxy: an extension of mahimahi for cloud resource managment
