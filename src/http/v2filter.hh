@@ -1,12 +1,15 @@
 #ifndef V2FILTER_HH
 #define V2FILTER_HH
 
-#include <mutex>
-#include "socket.hh"
 #include "http_header.hh"
+#include <atomic>
+#include <list>
+#include <algorithm>
+
+#define INVOKE_LIMIT 5
 
 using namespace std;
-int lambda_counter = 0;
+std::atomic<int> resource_counter(0);
 
 /* Spoof server response */
 string get_canned_response( const int status, const HTTPRequest & request )
@@ -34,50 +37,61 @@ string get_canned_response( const int status, const HTTPRequest & request )
 
 /* Track the number of lambdas that being invoked.
  * Block future invocations that go above the invoke_limit */
-void limit_lambdas( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser,
-		   int invoke_limit )
+void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser,
+		    std::map< string, std::vector<std::string> > resource_keywords, int invoke_limit )
 {
 
     if ( not request_parser.empty() ) {
         auto message = request_parser.front();
 
 
-	/* identify lambda invokes in http message */
-        if ( message.str().find("lambda") != std::string::npos ) {
+	/* identify which resource in http message */
+	for ( const auto &resource : resource_keywords ) {
+        
+            auto resource_type = resource.first;
+            auto keywords = resource.second;
+            
+            /* if all keywords are present in message */
+	    if ( std::all_of( keywords.begin(), keywords.end(), 
+                [message]( string s) { return ( message.str().find(s) != std::string::npos ); } ) )
+            {
+	        resource_counter++;
+	        /* remove invocations that go above invoke limit */
+                if ( resource_counter > invoke_limit ) {
 
-	    /* remove invocations that go above invoke limit */
-            if ( lambda_counter >= invoke_limit ) {
+		    /* never deliver to server */
+		    request_parser.pop();
 
-		/* never deliver to server */
-		request_parser.pop();
+		    /* spoof server response */
+		    response_parser.new_request_arrived(message);
+		    response_parser.parse( get_canned_response( 405, message ) );
 
-		/* spoof server response */
-		response_parser.new_request_arrived(message);
-		response_parser.parse( get_canned_response( 405, message ) );
+            	    cerr << "--- " << resource_type << " " << resource_counter << " blocked because ";
+            	    cerr << "limit exceeded---" <<endl;
+		    cerr << message.str() << endl;
 
-            	cerr << "---Lambda " << lambda_counter << " blocked because ";
-            	cerr << "limit exceeded---" <<endl;
-		cerr << message.str() << endl;
+                }
+	        else {
+                    cerr << "--- " << resource_type << " " << resource_counter << " invoked!---" <<endl;
+	        }
 
             }
-	    else {
-                cerr << "---Lambda " << lambda_counter << " invoked!---" <<endl;
-	    }
 
-	    lambda_counter++;
         }
-
+    
     }
-
-}
-
+} /* end of limit_resource */
 
 /* Proxy filters */
 bool v2filter( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser )
 {
 
+    std::map< string, std::vector<std::string> > resource_keywords;
+    resource_keywords[ "lambda" ] = { "lambda" };
+    resource_keywords[ "ec2" ] = { "ec2", "RunInstances" };
+
    /* limit to 5 lambdas per app */
-   limit_lambdas( request_parser, response_parser, 5 );
+   limit_resource( request_parser, response_parser, resource_keywords, INVOKE_LIMIT );
 
    //insert other filter calls here
 
