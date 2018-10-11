@@ -14,4 +14,5 @@ libhttp_a_SOURCES = http_request_parser.hh \
         http_message.hh http_message.cc \
         http_message_sequence.hh \
         backing_store.hh backing_store.cc \
+        cloud_resource.hh cloud_resource.cc \
 	v2filter.hh

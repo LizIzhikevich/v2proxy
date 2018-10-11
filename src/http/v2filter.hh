@@ -2,14 +2,12 @@
 #define V2FILTER_HH
 
 #include "http_header.hh"
+#include "cloud_resource.hh"
 #include <atomic>
 #include <list>
 #include <algorithm>
 
-#define INVOKE_LIMIT 5
-
 using namespace std;
-std::atomic<int> resource_counter(0);
 
 /* Spoof server response */
 string get_canned_response( const int status, const HTTPRequest & request )
@@ -38,7 +36,7 @@ string get_canned_response( const int status, const HTTPRequest & request )
 /* Track the number of lambdas that being invoked.
  * Block future invocations that go above the invoke_limit */
 void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser,
-		    std::map< string, std::vector<std::string> > resource_keywords, int invoke_limit )
+		    std::map< string, std::vector<std::string> > resource_keywords)
 {
 
     if ( not request_parser.empty() ) {
@@ -55,9 +53,10 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 	    if ( std::all_of( keywords.begin(), keywords.end(), 
                 [message]( string s) { return ( message.str().find(s) != std::string::npos ); } ) )
             {
-	        resource_counter++;
+
+                CloudResource cur( resource_type );
 	        /* remove invocations that go above invoke limit */
-                if ( resource_counter > invoke_limit ) {
+                if ( not cur.invoke ) {
 
 		    /* never deliver to server */
 		    request_parser.pop();
@@ -66,13 +65,13 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 		    response_parser.new_request_arrived(message);
 		    response_parser.parse( get_canned_response( 405, message ) );
 
-            	    cerr << "--- " << resource_type << " " << resource_counter << " blocked because ";
+            	    cerr << "--- " << cur.resource_type << " " << cur.id << " blocked because ";
             	    cerr << "limit exceeded---" <<endl;
 		    cerr << message.str() << endl;
 
                 }
 	        else {
-                    cerr << "--- " << resource_type << " " << resource_counter << " invoked!---" <<endl;
+                    cerr << "--- " << cur.resource_type  << " " << cur.id << " invoked!---" <<endl;
 	        }
 
             }
@@ -91,7 +90,7 @@ bool v2filter( HTTPRequestParser & request_parser, HTTPResponseParser & response
     resource_keywords[ "ec2" ] = { "ec2", "RunInstances" };
 
    /* limit to 5 lambdas per app */
-   limit_resource( request_parser, response_parser, resource_keywords, INVOKE_LIMIT );
+   limit_resource( request_parser, response_parser, resource_keywords );
 
    //insert other filter calls here
 
