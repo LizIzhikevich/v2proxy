@@ -10,12 +10,11 @@ function validate () {
 
 make
 validate
+sleep 2
 
 sudo make install
 validate
-
-#mm-webrecord ~/tmp_liz/diy_$today 
-validate
+sleep 2
 
 python sample_cloud_apps/invoke_lambda.py
 validate
