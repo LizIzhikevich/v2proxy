@@ -1,5 +1,5 @@
-#ifndef V2FILTER_HH
-#define V2FILTER_HH
+#ifndef V2FILTERCLIENT_HH
+#define V2FILTERCLIENT_HH
 
 #include "http_header.hh"
 #include "cloud_resource.hh"
@@ -68,12 +68,14 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 
                     curr.record_block();
                     
-		    cerr << message.str() << endl;
+		    //cerr << message.str() << endl;
 
                 }
 	        else {
                     
                     curr.record_invoke();
+
+		    //cerr << message.str() << endl;
 
 	        }
 
@@ -85,7 +87,7 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 } /* end of limit_resource */
 
 /* Proxy filters */
-bool v2filter( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser )
+bool v2filter_client( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser )
 {
 
     std::map< string, std::vector<std::string> > resource_keywords;
