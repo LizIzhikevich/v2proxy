@@ -3,7 +3,6 @@
 
 #include "http_header.hh"
 #include "cloud_resource.hh"
-#include <atomic>
 #include <list>
 #include <algorithm>
 
