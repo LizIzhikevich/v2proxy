@@ -20,4 +20,17 @@ bool CloudResource::invoke_resource( int id )
 
 }
 
+void CloudResource::record_block()
+{
 
+    cerr << "--- " << this->resource_type << " " << this->id << " blocked because ";
+    cerr << "limit exceeded---" <<endl;
+
+}
+
+void CloudResource::record_invoke()
+{
+
+    cerr << "--- " << this->resource_type  << " " << this->id << " invoked!---" <<endl;
+
+}

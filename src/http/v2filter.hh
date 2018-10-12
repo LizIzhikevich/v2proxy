@@ -54,9 +54,11 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
                 [message]( string s) { return ( message.str().find(s) != std::string::npos ); } ) )
             {
 
-                CloudResource cur( resource_type );
+                /* Create cloud resource object */
+                CloudResource curr( resource_type );
+
 	        /* remove invocations that go above invoke limit */
-                if ( not cur.invoke ) {
+                if ( not curr.invoke ) {
 
 		    /* never deliver to server */
 		    request_parser.pop();
@@ -65,13 +67,15 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 		    response_parser.new_request_arrived(message);
 		    response_parser.parse( get_canned_response( 405, message ) );
 
-            	    cerr << "--- " << cur.resource_type << " " << cur.id << " blocked because ";
-            	    cerr << "limit exceeded---" <<endl;
+                    curr.record_block();
+                    
 		    cerr << message.str() << endl;
 
                 }
 	        else {
-                    cerr << "--- " << cur.resource_type  << " " << cur.id << " invoked!---" <<endl;
+                    
+                    curr.record_invoke();
+
 	        }
 
             }

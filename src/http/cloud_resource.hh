@@ -25,5 +25,9 @@ public:
     virtual ~CloudResource() {}  
     CloudResource( const std::string & str );
 
+    /* logging */
+    void record_block();
+    void record_invoke();
+
 };
 #endif /* CLOUD_RESOURCE_HH */
