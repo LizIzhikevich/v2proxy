@@ -15,6 +15,7 @@ string get_canned_response( const int status, const HTTPRequest & request )
     { 400, "Bad Request" },
     { 404, "Not Found" },
     { 405, "Method Not Allowed" },
+    { 429, "%" },
   };
 
   HTTPResponse response;
@@ -64,7 +65,7 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 
 		    /* spoof server response */
 		    response_parser.new_request_arrived(message);
-		    response_parser.parse( get_canned_response( 405, message ) );
+		    response_parser.parse( get_canned_response( 429, message ) );
 
                     curr.record_block();
                     

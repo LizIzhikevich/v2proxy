@@ -21,7 +21,8 @@
 #include "backing_store.hh"
 #include "exception.hh"
 #include "v2filter_client.hh"
-//#include "v2filter_server.hh"
+#include "v2filter_server.hh"
+#include "cloud_resource_list.hh"
 
 using namespace std;
 using namespace PollerShortNames;
@@ -42,6 +43,7 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
 
     HTTPRequestParser request_parser;
     HTTPResponseParser response_parser;
+    CloudResourceList cloud_resource_list;
 
     const Address server_addr = client.original_dest();
 
@@ -83,7 +85,7 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
                                            response_parser.pop();
                                            return ResultType::Continue;
                                        },
-                                       [&] () { return not response_parser.empty(); } ) );
+                                       [&] () { return v2filter_server( response_parser, cloud_resource_list ); } ) );
 
     while ( true ) {
         if ( poller.poll( -1 ).result == Poller::Result::Type::Exit ) {
