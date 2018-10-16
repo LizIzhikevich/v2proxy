@@ -1,11 +1,8 @@
 #include "cloud_resource_list.hh"
 
-using namespace std;
-
-/* save IDs */
-
 map< string, vector< string > > CloudResourceList::resource_list;
 
+/* save IDs */
 void CloudResourceList::push_resource_list( std::string & resource_name, std::string & instance_id )
 {
 
@@ -18,20 +15,23 @@ void CloudResourceList::push_resource_list( std::string & resource_name, std::st
 void CloudResourceList::terminate_all_ec2s()
 {
 
-    for ( auto id : resource_list[ "ec2" ] ) {
 
-        string terminate_command = "aws ec2 terminate-instances --instance-ids " + id + " --no-verify-ssl";
+    /* create a single string of all ids */
+    string id_list;
+    id_list = accumulate( begin( resource_list[ "ec2" ] ) , end( resource_list[ "ec2" ] ), id_list );
 
-        if ( system( terminate_command.c_str() ) ) {
+    cerr << " ---Terminating: " << id_list << "---" << endl;
 
-            cerr << "---Terminating: " << id << "---" << endl;
+    vector< string > terminate_command { "/home/liz/.local/bin/aws", "ec2", "terminate-instances", 
+                                            "--instance-ids" };
 
-        } else {
+    /* insert all terminating ids */
+    terminate_command.insert( terminate_command.end(), resource_list[ "ec2" ].begin(), resource_list[ "ec2" ].end() ); 
+    /* turn off cert checking */
+    terminate_command.push_back( "--no-verify-ssl" );
 
-            cerr << "---Failed to terminate: " << id << "---" << endl;
-
-        }    
-    }
+    //ezexec( terminate_command ); /* Currently this kills the shell */
+    // run( terminate_command ); runtime_error: ChildProcess constructed in multi-threaded program
 
 }
 
