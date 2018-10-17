@@ -53,14 +53,15 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
             
             /* if all keywords are present in message */
 	    if ( std::all_of( keywords.begin(), keywords.end(), 
-                [message]( string s) { return ( message.str().find(s) != std::string::npos ); } ) )
+                [message]( string s ) { return ( message.str().find(s) != std::string::npos ); } ) )
             {
 
-                /* Create cloud resource object */
+                /* Create and save cloud resource object */
                 CloudResource curr( resource_type );
+                bool invoked = cloud_resource_list.invoke_resource( curr );
 
 	        /* remove invocations that go above invoke limit */
-                if ( not curr.invoke_ ) {
+                if ( not invoked) {
 
 		    /* never deliver to server */
 		    request_parser.pop();
@@ -70,22 +71,12 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
                     /* TODO: Play around with code. 429 (aws appropriate) causes re-invokes on boto3 part */
 		    response_parser.parse( get_canned_response( 405, message ) ); 
 
-                    curr.record_block();
-                   
-                    cloud_resource_list.terminate_all_ec2s();
+                    //cloud_resource_list.terminate_all_ec2s();
   
-		    //cerr << message.str() << endl;
-
                 }
-	        else {
-                    
-                    curr.record_invoke();
-
-		    //cerr << message.str() << endl;
-
-	        }
-
             }
+
+	    //cerr << message.str() << endl;
 
         }
     

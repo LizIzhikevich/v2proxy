@@ -1,9 +1,34 @@
 #include "cloud_resource_list.hh"
 
 map< string, vector< string > > CloudResourceList::resource_list_;
+map< string, vector< CloudResource > > CloudResourceList::cloud_resource_list_;
+
+bool CloudResourceList::invoke_resource( CloudResource & resource )
+{
+ 
+    /* check if resource can be invoked or needs to be blocked */   
+    if ( cloud_resource_list_[ "invoked" ].size() < INVOKE_LIMIT ) 
+    {    
+        
+        cloud_resource_list_[ "invoked" ].push_back( resource );
+        resource.record_invoke();
+        return true;
+
+    }
+    /* exceeding invoke limit */
+    else { 
+        
+        cloud_resource_list_[ "blocked" ].push_back( resource );
+        resource.record_block();
+        return false;
+
+    }    
+
+}
+
 
 /* save IDs */
-void CloudResourceList::push_resource_list( std::string & resource_name, std::string & instance_id )
+void CloudResourceList::push_id_list( std::string & resource_name, std::string & instance_id )
 {
 
     resource_list_[ resource_name ].push_back( instance_id );

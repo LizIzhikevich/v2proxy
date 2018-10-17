@@ -34,6 +34,9 @@ public:
     CloudResource();
     CloudResource( const std::string & resource_name );
 
+    /* getters */
+    bool get_invoke();
+
     /* logging */
     void record_block();
     void record_invoke();

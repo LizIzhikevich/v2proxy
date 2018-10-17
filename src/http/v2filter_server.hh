@@ -31,7 +31,7 @@ void collect_resource_data( HTTPResponseParser & response_parser, CloudResourceL
             std::string resource_name = "ec2";
             
             /* store the instance id */
-            cloud_resource_list.push_resource_list( resource_name, instance_id );
+            cloud_resource_list.push_id_list( resource_name, instance_id );
 
 
         }
