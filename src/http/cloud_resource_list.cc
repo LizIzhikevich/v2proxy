@@ -1,12 +1,12 @@
 #include "cloud_resource_list.hh"
 
-map< string, vector< string > > CloudResourceList::resource_list;
+map< string, vector< string > > CloudResourceList::resource_list_;
 
 /* save IDs */
 void CloudResourceList::push_resource_list( std::string & resource_name, std::string & instance_id )
 {
 
-    resource_list[ resource_name ].push_back( instance_id );
+    resource_list_[ resource_name ].push_back( instance_id );
 
     cerr << "---Logging instance id: " << instance_id << "---" << endl;
 
@@ -18,7 +18,7 @@ void CloudResourceList::terminate_all_ec2s()
 
     /* create a single string of all ids */
     string id_list;
-    id_list = accumulate( begin( resource_list[ "ec2" ] ) , end( resource_list[ "ec2" ] ), id_list );
+    id_list = accumulate( begin( resource_list_[ "ec2" ] ) , end( resource_list_[ "ec2" ] ), id_list );
 
     cerr << " ---Terminating: " << id_list << "---" << endl;
 
@@ -26,7 +26,7 @@ void CloudResourceList::terminate_all_ec2s()
                                             "--instance-ids" };
 
     /* insert all terminating ids */
-    terminate_command.insert( terminate_command.end(), resource_list[ "ec2" ].begin(), resource_list[ "ec2" ].end() ); 
+    terminate_command.insert( terminate_command.end(), resource_list_[ "ec2" ].begin(), resource_list_[ "ec2" ].end() ); 
     /* turn off cert checking */
     terminate_command.push_back( "--no-verify-ssl" );
 

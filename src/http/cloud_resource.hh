@@ -16,24 +16,24 @@ class CloudResource
 private:
 
     /* member fields */
-    static int total_cost;
-    std::string resource_type;
-    int id_counter;
-    static int resource_counter;
-    const int INVOKE_LIMIT = 5;
+    static int total_cost_;
+    std::string resource_type_;
+    int id_counter_;
+    static int resource_counter_;
+    const int INVOKE_LIMIT = 2;
 
     /* methods */
-    bool invoke_resource( int );
+    bool invoke_resource();
 
 public:
 
     /* member fields */
-    bool invoke;
+    bool invoke_;
 
     /* Constructors */
     CloudResource();
     virtual ~CloudResource() {}  
-    CloudResource( const std::string & str );
+    CloudResource( const std::string & resource_name );
 
     /* logging */
     void record_block();

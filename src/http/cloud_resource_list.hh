@@ -17,7 +17,7 @@ class CloudResourceList
 {
 
 private:
-    static map< string, vector< string > > resource_list;
+    static map< string, vector< string > > resource_list_;
 
 public:
     CloudResourceList() {}

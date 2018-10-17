@@ -16,6 +16,7 @@ void collect_resource_data( HTTPResponseParser & response_parser, CloudResourceL
     if ( not response_parser.empty() ) {
         auto message = response_parser.front().str();
 
+        /* TODO: Find ALL instanceIDs for messages where count >1 invoked */
         /* find instance-id */
         std::size_t first = message.find( "<instanceId>" );
         std::size_t last = message.find( "</instanceId>" );

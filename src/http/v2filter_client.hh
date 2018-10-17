@@ -3,6 +3,7 @@
 
 #include "http_header.hh"
 #include "cloud_resource.hh"
+#include "cloud_resource_list.hh"
 #include <list>
 #include <algorithm>
 
@@ -36,7 +37,8 @@ string get_canned_response( const int status, const HTTPRequest & request )
 /* Track the number of lambdas that being invoked.
  * Block future invocations that go above the invoke_limit */
 void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser,
-		    std::map< string, std::vector<std::string> > resource_keywords)
+		    std::map< string, std::vector<std::string> > resource_keywords, 
+                    CloudResourceList & cloud_resource_list )
 {
 
     if ( not request_parser.empty() ) {
@@ -58,7 +60,7 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
                 CloudResource curr( resource_type );
 
 	        /* remove invocations that go above invoke limit */
-                if ( not curr.invoke ) {
+                if ( not curr.invoke_ ) {
 
 		    /* never deliver to server */
 		    request_parser.pop();
@@ -68,7 +70,9 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 		    response_parser.parse( get_canned_response( 429, message ) );
 
                     curr.record_block();
-                    
+                   
+                    cloud_resource_list.terminate_all_ec2s();
+  
 		    //cerr << message.str() << endl;
 
                 }
@@ -88,7 +92,8 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 } /* end of limit_resource */
 
 /* Proxy filters */
-bool v2filter_client( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser )
+bool v2filter_client( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser, 
+                    CloudResourceList & cloud_resource_list )
 {
 
     std::map< string, std::vector<std::string> > resource_keywords;
@@ -96,7 +101,7 @@ bool v2filter_client( HTTPRequestParser & request_parser, HTTPResponseParser & r
     resource_keywords[ "ec2" ] = { "ec2", "RunInstances" };
 
    /* limit to 5 lambdas per app */
-   limit_resource( request_parser, response_parser, resource_keywords );
+   limit_resource( request_parser, response_parser, resource_keywords, cloud_resource_list );
 
    //insert other filter calls here
 
