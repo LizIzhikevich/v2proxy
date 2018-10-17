@@ -32,7 +32,6 @@ public:
 
     /* Constructors */
     CloudResource();
-    virtual ~CloudResource() {}  
     CloudResource( const std::string & resource_name );
 
     /* logging */
