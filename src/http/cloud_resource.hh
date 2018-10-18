@@ -7,7 +7,7 @@
 #include <vector>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <ctime>
 
 using namespace std;
 
@@ -16,30 +16,23 @@ class CloudResource
 private:
 
     /* member fields */
-    static int total_cost_;
     std::string resource_type_;
     int id_counter_;
-    static int resource_counter_;
-    const int INVOKE_LIMIT = 2;
-
-    /* methods */
-    bool invoke_resource();
+    time_t time_at_invoke_;
+    bool invoke_;
 
 public:
 
-    /* member fields */
-    bool invoke_;
-
     /* Constructors */
     CloudResource();
-    CloudResource( const std::string & resource_name );
+    CloudResource( const std::string & resource_name, int id_counter, bool invoke );
 
-    /* getters */
     bool get_invoke();
 
     /* logging */
     void record_block();
     void record_invoke();
+
 
 };
 

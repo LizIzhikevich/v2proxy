@@ -2,19 +2,15 @@
 
 using namespace std;
 
-int CloudResource::resource_counter_ = 0;
-int CloudResource::total_cost_ = 0;
-
-
 /* Constructor */
-CloudResource::CloudResource( const std::string & resource_name ) 
-    : resource_type_( resource_name ), id_counter_( resource_counter_++ )
-    , invoke_( false ) 
+CloudResource::CloudResource( const std::string & resource_name, int id_counter, bool invoke ) 
+    : resource_type_( resource_name ), id_counter_( id_counter )
+    , time_at_invoke_( time(0) ), invoke_( invoke ) 
 {
 }
 
 /* Default Constructor */
-CloudResource::CloudResource() : CloudResource( "Null" )
+CloudResource::CloudResource() : CloudResource( "Null", 0, false )
 {
 }
 
@@ -30,8 +26,6 @@ bool CloudResource::get_invoke()
 void CloudResource::record_block()
 {
 
-    this->invoke_ = false;
-
     cerr << "--- " << this->resource_type_ << " " << this->id_counter_ << " blocked because ";
     cerr << "limit exceeded---" << endl;
 
@@ -40,7 +34,6 @@ void CloudResource::record_block()
 /* Log behavior */
 void CloudResource::record_invoke()
 {
-    this->invoke_ = true;
 
     cerr << "--- " << this->resource_type_  << " " << this->id_counter_ << " invoked!---" << endl;
 

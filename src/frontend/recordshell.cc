@@ -17,6 +17,7 @@
 #include "config.h"
 #include "backing_store.hh"
 #include "exception.hh"
+#include "cloud_resource_list.hh"
 
 using namespace std;
 
@@ -155,8 +156,10 @@ int main( int argc, char *argv[] )
                 HTTPDiskStore disk_backing_store( directory );
 
                 EventLoop recordr_event_loop;
+                CloudResourceList resource_list;
+
                 dns_outside.register_handlers( recordr_event_loop );
-                http_proxy.register_handlers( recordr_event_loop, disk_backing_store );
+                http_proxy.register_handlers( recordr_event_loop, disk_backing_store, resource_list );
                 return recordr_event_loop.loop();
             } );
 

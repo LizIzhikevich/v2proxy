@@ -2,27 +2,54 @@
 
 map< string, vector< string > > CloudResourceList::resource_list_;
 map< string, vector< CloudResource > > CloudResourceList::cloud_resource_list_;
+std:: mutex cloud_resource_list_mutex;
 
-bool CloudResourceList::invoke_resource( CloudResource & resource )
+bool CloudResourceList::invoke_resource( const std::string & resource_type )
 {
- 
-    /* check if resource can be invoked or needs to be blocked */   
+    /* keep thread safe */ 
+    std::lock_guard< std::mutex > lock( cloud_resource_list_mutex );
+
+    /* check if resource about to be created can be invoked or blocked */   
     if ( cloud_resource_list_[ "invoked" ].size() < INVOKE_LIMIT ) 
     {    
+
+        CloudResource curr( resource_type, get_total_resource_count(), true );
         
-        cloud_resource_list_[ "invoked" ].push_back( resource );
-        resource.record_invoke();
+        cloud_resource_list_[ "invoked" ].push_back( curr );
+        curr.record_invoke();
         return true;
 
     }
     /* exceeding invoke limit */
     else { 
         
-        cloud_resource_list_[ "blocked" ].push_back( resource );
-        resource.record_block();
+        CloudResource curr( resource_type, get_total_resource_count(), false );
+
+        cloud_resource_list_[ "blocked" ].push_back( curr );
+        curr.record_block();
         return false;
 
     }    
+
+}
+
+
+int CloudResourceList::get_total_resource_count() 
+{
+
+    int total_count = 0;
+
+    for ( auto category : { "invoked", "blocked" } ) { 
+
+        if ( cloud_resource_list_.find( category ) != cloud_resource_list_.end() ) {
+
+            total_count += cloud_resource_list_[ category ].size();
+
+        }
+
+    }
+
+    return total_count;
 
 }
 

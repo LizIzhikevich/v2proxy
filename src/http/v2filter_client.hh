@@ -56,9 +56,8 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
                 [message]( string s ) { return ( message.str().find(s) != std::string::npos ); } ) )
             {
 
-                /* Create and save cloud resource object */
-                CloudResource curr( resource_type );
-                bool invoked = cloud_resource_list.invoke_resource( curr );
+                /* Attempt to invoke cloud resource object */
+                bool invoked = cloud_resource_list.invoke_resource( resource_type );
 
 	        /* remove invocations that go above invoke limit */
                 if ( not invoked) {

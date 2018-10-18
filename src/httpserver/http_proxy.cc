@@ -22,7 +22,7 @@
 #include "exception.hh"
 #include "v2filter_client.hh"
 #include "v2filter_server.hh"
-#include "cloud_resource_list.hh"
+//#include "cloud_resource_list.hh"
 
 using namespace std;
 using namespace PollerShortNames;
@@ -37,13 +37,13 @@ HTTPProxy::HTTPProxy( const Address & listener_addr )
 }
 
 template <class SocketType>
-void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore & backing_store )
+void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore & backing_store, 
+                    CloudResourceList & cloud_resource_list)
 {
     Poller poller;
 
     HTTPRequestParser request_parser;
     HTTPResponseParser response_parser;
-    CloudResourceList cloud_resource_list;
 
     const Address server_addr = client.original_dest();
 
@@ -95,7 +95,7 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
     }
 }
 
-void HTTPProxy::handle_tcp( HTTPBackingStore & backing_store )
+void HTTPProxy::handle_tcp( HTTPBackingStore & backing_store, CloudResourceList & resource_list )
 {
     thread newthread( [&] ( TCPSocket client ) {
             try {
@@ -107,7 +107,7 @@ void HTTPProxy::handle_tcp( HTTPBackingStore & backing_store )
                 server.connect( server_addr );
 
                 if ( server_addr.port() != 443 ) { /* normal HTTP */
-                    return loop( server, client, backing_store );
+                    return loop( server, client, backing_store, resource_list );
                 }
 
                 /* handle TLS */
@@ -117,7 +117,7 @@ void HTTPProxy::handle_tcp( HTTPBackingStore & backing_store )
                 SecureSocket tls_client( server_context_.new_secure_socket( move( client ) ) );
                 tls_client.accept();
 
-                loop( tls_server, tls_client, backing_store );
+                loop( tls_server, tls_client, backing_store, resource_list );
             } catch ( const exception & e ) {
                 print_exception( e );
             }
@@ -130,11 +130,12 @@ void HTTPProxy::handle_tcp( HTTPBackingStore & backing_store )
 /* register this HTTPProxy's TCP listener socket to handle events with
    the given event_loop, saving request-response pairs to the given
    backing_store (which is captured and must continue to persist) */
-void HTTPProxy::register_handlers( EventLoop & event_loop, HTTPBackingStore & backing_store )
+void HTTPProxy::register_handlers( EventLoop & event_loop, HTTPBackingStore & backing_store, 
+                                CloudResourceList & resource_list )
 {
     event_loop.add_simple_input_handler( tcp_listener(),
                                          [&] () {
-                                             handle_tcp( backing_store );
+                                             handle_tcp( backing_store, resource_list );
                                              return ResultType::Continue;
                                          } );
 }
