@@ -16,7 +16,7 @@ bool CloudResourceList::invoke_resource( const std::string & resource_type )
         CloudResource curr( resource_type, get_total_resource_count(), true );
         
         cloud_resource_list_[ "invoked" ].push_back( curr );
-        curr.record_invoke();
+       
         return true;
 
     }
@@ -26,7 +26,7 @@ bool CloudResourceList::invoke_resource( const std::string & resource_type )
         CloudResource curr( resource_type, get_total_resource_count(), false );
 
         cloud_resource_list_[ "blocked" ].push_back( curr );
-        curr.record_block();
+        
         return false;
 
     }    

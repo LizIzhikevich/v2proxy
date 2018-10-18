@@ -7,6 +7,19 @@ CloudResource::CloudResource( const std::string & resource_name, int id_counter,
     : resource_type_( resource_name ), id_counter_( id_counter )
     , time_at_invoke_( time(0) ), invoke_( invoke ) 
 {
+
+    if( invoke ) 
+    {
+
+        record_invoke();
+
+    }
+    else {
+
+        record_block();
+    
+    }
+
 }
 
 /* Default Constructor */

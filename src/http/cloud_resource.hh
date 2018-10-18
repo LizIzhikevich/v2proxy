@@ -21,6 +21,10 @@ private:
     time_t time_at_invoke_;
     bool invoke_;
 
+    /* logging */
+    void record_block();
+    void record_invoke();
+
 public:
 
     /* Constructors */
@@ -28,11 +32,6 @@ public:
     CloudResource( const std::string & resource_name, int id_counter, bool invoke );
 
     bool get_invoke();
-
-    /* logging */
-    void record_block();
-    void record_invoke();
-
 
 };
 
