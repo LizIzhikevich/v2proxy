@@ -16,14 +16,13 @@ void collect_resource_data( HTTPResponseParser & response_parser, CloudResourceL
     if ( not response_parser.empty() ) {
         auto message = response_parser.front().str();
 
-        /* TODO: Find ALL instanceIDs for messages where count >1 invoked */
         /* find instance-id */
         std::size_t first = message.find( "<instanceId>" );
         std::size_t last = message.find( "</instanceId>" );
         std::size_t str_len = strlen( "<instanceId>" );
 
         /* if instance id found in ec2 response */
-        if ( ( first != std::string::npos ) && ( last != std::string::npos ) )
+        while ( ( first != std::string::npos ) && ( last != std::string::npos ) )
         {
 
             string instance_id = message.substr( ( first + str_len ), ( last - ( first + str_len ) ) );
@@ -33,6 +32,9 @@ void collect_resource_data( HTTPResponseParser & response_parser, CloudResourceL
             /* store the instance id */
             cloud_resource_list.push_id_list( resource_name, instance_id );
 
+            /* find other instance ids */ 
+            first = message.find( "<instanceId>", last + str_len );
+            last = message.find( "</instanceId>", last + str_len );
 
         }
 

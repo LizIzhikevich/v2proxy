@@ -56,6 +56,12 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
                 [message]( string s ) { return ( message.str().find(s) != std::string::npos ); } ) )
             {
 
+                /* TODO: Currently assuming that 1 invocation message = 1 resource invoke 
+                 * This is actually not the case when setting MaxCount > 1 in invoke message...
+                 * will need to address by parsing message for max count...(?)
+                 * and then perhaps change max count to be < limit ...(?)
+                 */
+
                 /* Attempt to invoke cloud resource object */
                 bool invoked = cloud_resource_list.invoke_resource( resource_type );
 

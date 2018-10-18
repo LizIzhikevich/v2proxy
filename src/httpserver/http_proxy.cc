@@ -52,6 +52,7 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
     poller.add_action( Poller::Action( server, Direction::In,
                                        [&] () {
                                            string buffer = server.read();
+                                           /* TODO refactor: add v2filter call here */ 
                                            response_parser.parse( buffer );
                                            return ResultType::Continue;
                                        },
@@ -61,6 +62,9 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
     poller.add_action( Poller::Action( client, Direction::In,
                                        [&] () {
                                            string buffer = client.read();
+                                           /* TODO refactor: add v2filter call here 
+                                            * not clear how to deal with sending fake response w/out 
+                                            * passing in reference to response parser */
                                            request_parser.parse( buffer );
                                            return ResultType::Continue;
                                        },
