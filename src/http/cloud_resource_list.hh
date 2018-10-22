@@ -20,7 +20,6 @@ class CloudResourceList
 
 private:
 
-    static map< string, vector< string > > resource_list_;
     static map< string, vector< CloudResource > > cloud_resource_list_;
 
     const size_t INVOKE_LIMIT = 2;
@@ -35,7 +34,6 @@ public:
 
     void assign_resource_id( std::string & resource_name, std::string & instance_id );
 
-    void push_id_list( std::string & resource_name, std::string & instance_id );
     void terminate_all_ec2s();
 
     void print_resources();

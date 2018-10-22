@@ -1,6 +1,5 @@
 #include "cloud_resource_list.hh"
 
-map< string, vector< string > > CloudResourceList::resource_list_;
 map< string, vector< CloudResource > > CloudResourceList::cloud_resource_list_;
 std:: mutex cloud_resource_list_mutex;
 
@@ -56,17 +55,6 @@ int CloudResourceList::get_total_resource_count()
     }
 
     return total_count;
-
-}
-
-
-/* save IDs */
-void CloudResourceList::push_id_list( std::string & resource_name, std::string & instance_id )
-{
-
-    resource_list_[ resource_name ].push_back( instance_id );
-
-    cerr << "---Logging instance id: " << instance_id << "---" << endl;
 
 }
 

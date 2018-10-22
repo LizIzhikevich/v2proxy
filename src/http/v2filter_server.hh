@@ -31,7 +31,6 @@ void collect_resource_data( HTTPResponseParser & response_parser, CloudResourceL
             
             /* store the instance id */
             resource_list.assign_resource_id( resource_name, instance_id );
-            resource_list.push_id_list( resource_name, instance_id );
 
             /* find other instance ids */ 
             first = message.find( "<instanceId>", last + str_len );

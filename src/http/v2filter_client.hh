@@ -84,7 +84,7 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
                 }
             }
 
-	    //cerr << message.str() << endl;
+	    cerr << message.str() << endl;
 
         }
     
