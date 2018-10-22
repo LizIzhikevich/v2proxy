@@ -71,6 +71,9 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 		    /* never deliver to server */
 		    request_parser.pop();
 
+
+                    /* TODO: Unable to parse response (no element found: line 1, column 0), invalid XML received
+                     * this ec2 when blocked err might be coming from somewhere here... */
 		    /* spoof server response */
 		    response_parser.new_request_arrived(message);
                     /* TODO: Play around with code. 429 (aws appropriate) causes re-invokes on boto3 part */

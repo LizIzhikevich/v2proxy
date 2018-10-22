@@ -23,6 +23,7 @@ using namespace std;
 
 int main( int argc, char *argv[] )
 {
+
     try {
         /* clear environment */
         char **user_environment = environ;
@@ -83,12 +84,15 @@ int main( int argc, char *argv[] )
         /* prepare event loop */
         EventLoop outer_event_loop;
 
+        /* prepare global cloud resource list */
+        CloudResourceList resource_list;
+
         /* Fork */
         {
             /* Make pipe for start signal */
             auto pipe = UnixDomainSocket::make_pair();
 
-            ChildProcess container_process( "recordshell", [&]() {
+            ChildProcess container_process( "v2proxyshell", [&]() {
                     /* wait for the go signal */
                     pipe.second.read();
 
@@ -117,13 +121,13 @@ int main( int argc, char *argv[] )
                     /* Fork again after dropping root privileges */
                     drop_privileges();
 
-                    /* prepare child's event loop */
+                    /* prepare child's event loop */ 
                     EventLoop shell_event_loop;
 
                     shell_event_loop.add_child_process( join( command ), [&]() {
                             /* restore environment and tweak prompt */
                             environ = user_environment;
-                            prepend_shell_prefix( "[record] " );
+                            prepend_shell_prefix( "[v2proxy] " );
 
                             return ezexec( command, true );
                         } );
@@ -142,8 +146,11 @@ int main( int argc, char *argv[] )
             /* tell ChildProcess it's ok to proceed */
             pipe.first.write( "x" );
 
+
             /* now that we have its pid, move container process to event loop */
             outer_event_loop.add_child_process( move( container_process ) );
+
+
         }
 
         /* do the actual recording in a different unprivileged child */
@@ -155,17 +162,21 @@ int main( int argc, char *argv[] )
                 /* set up backing store to save to disk */
                 HTTPDiskStore disk_backing_store( directory );
 
-                EventLoop recordr_event_loop;
-                CloudResourceList resource_list;
-
+                /* set up shell that prints state of all resources upon exit */
+                EventLoop recordr_event_loop( [&]() { resource_list.print_resources(); } );
+          
                 dns_outside.register_handlers( recordr_event_loop );
                 http_proxy.register_handlers( recordr_event_loop, disk_backing_store, resource_list );
+
                 return recordr_event_loop.loop();
             } );
+
 
         return outer_event_loop.loop();
     } catch ( const exception & e ) {
         print_exception( e );
+
         return EXIT_FAILURE;
     }
+
 }

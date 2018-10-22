@@ -33,8 +33,12 @@ public:
     
     bool invoke_resource( const std::string & resource_type );
 
+    void assign_resource_id( std::string & resource_name, std::string & instance_id );
+
     void push_id_list( std::string & resource_name, std::string & instance_id );
     void terminate_all_ec2s();
+
+    void print_resources();
 
     void calculate_cost();
 

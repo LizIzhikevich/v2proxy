@@ -11,9 +11,18 @@ using namespace PollerShortNames;
 EventLoop::EventLoop()
     : signals_( { SIGCHLD, SIGCONT, SIGHUP, SIGTERM, SIGQUIT, SIGINT } ),
       poller_(),
-      child_processes_()
+      child_processes_(),
+      optional_exit_behavior_( [](){} ) // do nothing by default
 {
     signals_.set_as_mask(); /* block signals so we can later use signalfd to read them */
+}
+
+/* specify optional exit behavior for shell 
+ * e.g., print state of shell before exiting */
+EventLoop::EventLoop( std::function<void()> optional_exit_behavior )
+    : EventLoop()
+{
+    optional_exit_behavior_ = optional_exit_behavior;
 }
 
 void EventLoop::add_simple_input_handler( FileDescriptor & fd,
@@ -33,6 +42,7 @@ Result EventLoop::handle_signal( const signalfd_siginfo & sig )
         break;
 
     case SIGCHLD:
+
         if ( child_processes_.empty() ) {
             throw runtime_error( "received SIGCHLD without any managed children" );
         }
@@ -72,7 +82,11 @@ Result EventLoop::handle_signal( const signalfd_siginfo & sig )
     case SIGTERM:
     case SIGQUIT:
     case SIGINT:
+  
+        optional_exit_behavior_();
+
         return ResultType::Exit;
+
     default:
         throw runtime_error( "EventLoop: unknown signal" );
     }

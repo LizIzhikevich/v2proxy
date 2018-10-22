@@ -19,6 +19,7 @@ private:
     Poller poller_;
     std::vector<std::pair<int, ChildProcess>> child_processes_;
     PollerShortNames::Result handle_signal( const signalfd_siginfo & sig );
+    std::function<void()> optional_exit_behavior_;
 
 protected:
     void add_action( Poller::Action action ) { poller_.add_action( action ); }
@@ -27,6 +28,8 @@ protected:
 
 public:
     EventLoop();
+    EventLoop( std::function<void()> optional_exit_behavior );
+
 
     void add_simple_input_handler( FileDescriptor & fd, const Poller::Action::CallbackType & callback );
 

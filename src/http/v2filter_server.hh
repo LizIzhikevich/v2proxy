@@ -10,7 +10,7 @@
 using namespace std;
 
 /* log resource data (ids/size/etc) from server responses */
-void collect_resource_data( HTTPResponseParser & response_parser, CloudResourceList & cloud_resource_list )
+void collect_resource_data( HTTPResponseParser & response_parser, CloudResourceList & resource_list )
 {
 
     if ( not response_parser.empty() ) {
@@ -30,7 +30,8 @@ void collect_resource_data( HTTPResponseParser & response_parser, CloudResourceL
             std::string resource_name = "ec2";
             
             /* store the instance id */
-            cloud_resource_list.push_id_list( resource_name, instance_id );
+            resource_list.assign_resource_id( resource_name, instance_id );
+            resource_list.push_id_list( resource_name, instance_id );
 
             /* find other instance ids */ 
             first = message.find( "<instanceId>", last + str_len );
@@ -43,10 +44,10 @@ void collect_resource_data( HTTPResponseParser & response_parser, CloudResourceL
 } 
 
 /* Proxy filters */
-bool v2filter_server( HTTPResponseParser & response_parser, CloudResourceList & cloud_resource_list )
+bool v2filter_server( HTTPResponseParser & response_parser, CloudResourceList & resource_list )
 {
 
-   collect_resource_data( response_parser, cloud_resource_list );
+   collect_resource_data( response_parser, resource_list );
 
    //insert other filter calls here
 

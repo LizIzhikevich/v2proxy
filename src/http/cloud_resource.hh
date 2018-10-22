@@ -17,6 +17,7 @@ private:
 
     /* member fields */
     std::string resource_type_;
+    std::string serial_identifier_;
     int id_counter_;
     time_t time_at_invoke_;
     bool invoke_;
@@ -32,7 +33,11 @@ public:
     CloudResource( const std::string & resource_name, int id_counter, bool invoke );
 
     bool get_invoke();
-
+    std::string get_type();
+    std::string get_serial_identifier();
+    void set_serial_identifier( const std::string & identifier );
+    bool is_serial_identifier_empty();
+    void print_metadata();
 };
 
 

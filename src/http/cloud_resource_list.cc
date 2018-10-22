@@ -16,6 +16,8 @@ bool CloudResourceList::invoke_resource( const std::string & resource_type )
         CloudResource curr( resource_type, get_total_resource_count(), true );
         
         cloud_resource_list_[ "invoked" ].push_back( curr );
+
+        print_resources();
        
         return true;
 
@@ -26,7 +28,10 @@ bool CloudResourceList::invoke_resource( const std::string & resource_type )
         CloudResource curr( resource_type, get_total_resource_count(), false );
 
         cloud_resource_list_[ "blocked" ].push_back( curr );
-        
+       
+
+        print_resources();
+ 
         return false;
 
     }    
@@ -63,6 +68,54 @@ void CloudResourceList::push_id_list( std::string & resource_name, std::string &
     cerr << "---Logging instance id: " << instance_id << "---" << endl;
 
 }
+
+
+void CloudResourceList::assign_resource_id( std::string & resource_name, std::string & instance_id )
+{
+    
+    for ( auto & resource : cloud_resource_list_[ "invoked" ] ) 
+    {
+
+        /* if serial identifier not set yet */
+        if ( ( resource.get_type() == resource_name ) && resource.is_serial_identifier_empty() ) 
+        {
+
+            resource.set_serial_identifier( instance_id );
+            cerr << "---Logging instance id: " << instance_id << "---" << endl;
+
+            return; 
+
+        }
+
+    }
+   
+    /* Something is not right if we haven't returned yet...more instance ids than
+     * allowed cloud resources...
+     */
+    throw runtime_error( " Failed to assign resource id to available cloud resource." );
+
+}
+
+void CloudResourceList::print_resources() 
+{
+    cerr << "--- printing final state of cloud resources for this application ---" << endl;
+
+    for ( const auto & category : cloud_resource_list_ ) 
+    {
+        
+        cerr << " --- "<< category.first << " --- " << endl;
+            
+        for ( auto & resource : cloud_resource_list_[ category.first ] )
+        {       
+            
+            resource.print_metadata();
+            
+        }
+    
+    }
+
+}
+
 
 void CloudResourceList::terminate_all_ec2s()
 {
