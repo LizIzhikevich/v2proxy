@@ -17,6 +17,7 @@ bool CloudResourceList::invoke_resource( const std::string & resource_type )
         
         cloud_resource_list_[ "invoked" ].push_back( curr );
 
+        //for debug
         print_resources();
        
         return true;
@@ -29,7 +30,7 @@ bool CloudResourceList::invoke_resource( const std::string & resource_type )
 
         cloud_resource_list_[ "blocked" ].push_back( curr );
        
-
+        //for debug
         print_resources();
  
         return false;
@@ -98,21 +99,33 @@ void CloudResourceList::assign_resource_id( std::string & resource_name, std::st
 
 void CloudResourceList::print_resources() 
 {
+
+    bool printed = false;
+
     cerr << "--- printing final state of cloud resources for this application ---" << endl;
 
     for ( const auto & category : cloud_resource_list_ ) 
     {
-        
+        printed = true;
+
         cerr << " --- "<< category.first << " --- " << endl;
-            
+                
         for ( auto & resource : cloud_resource_list_[ category.first ] )
         {       
             
             resource.print_metadata();
             
         }
-    
+
     }
+
+    terminate_all_ec2s();
+    
+    if (not printed) 
+    {
+        cerr << "There are no lingering resources!" << endl;
+    }
+
 
 }
 
@@ -120,24 +133,31 @@ void CloudResourceList::print_resources()
 void CloudResourceList::terminate_all_ec2s()
 {
 
+    bool printed = false;
 
-    /* create a single string of all ids */
-    string id_list;
-    id_list = accumulate( begin( resource_list_[ "ec2" ] ) , end( resource_list_[ "ec2" ] ), id_list );
+    /* for all invoked ec2s, print the command to terminate them */
+    if ( cloud_resource_list_.find( "invoked" ) != cloud_resource_list_.end() ) {
 
-    cerr << " ---Terminating: " << id_list << "---" << endl;
+        for ( auto & resource : cloud_resource_list_[ "invoked" ] )
+        {
 
-    vector< string > terminate_command { "/home/liz/.local/bin/aws", "ec2", "terminate-instances", 
-                                            "--instance-ids" };
+            if ( resource.get_type() == "ec2" )
+            {
 
-    /* insert all terminating ids */
-    terminate_command.insert( terminate_command.end(), resource_list_[ "ec2" ].begin(), resource_list_[ "ec2" ].end() ); 
-    /* turn off cert checking */
-    terminate_command.push_back( "--no-verify-ssl" );
+                if ( not printed ) 
+                {
+                    cerr << "To terminate all EC2 instances run: "<< endl;
+                    cerr << "aws ec2 terminate-instances --instance-ids ";
 
-    //ezexec( terminate_command ); /* Currently this kills the shell */
-    // run( terminate_command ); runtime_error: ChildProcess constructed in multi-threaded program
+                    printed = true;
+                }
 
+                cerr << resource.get_serial_identifier() << " ";
+            }
+
+        }
+
+    }
 }
 
 /* TODO: Calculate total cost of resources */
