@@ -8,7 +8,7 @@ CloudResource::CloudResource( const std::string & resource_name, int id_counter,
     , time_at_invoke_( time(0) ), invoke_( invoke ) 
 {
 
-    if( invoke ) 
+    if ( invoke ) 
     {
 
         record_invoke();

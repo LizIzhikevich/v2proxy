@@ -43,7 +43,7 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
 
     if ( not request_parser.empty() ) {
         auto message = request_parser.front();
-
+        auto message_str = message.str();
 
 	/* identify which resource in http message */
 	for ( const auto &resource : resource_keywords ) {
@@ -62,8 +62,61 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
                  * and then perhaps change max count to be < limit ...(?)
                  */
 
-                /* Attempt to invoke cloud resource object */
-                bool invoked = cloud_resource_list.invoke_resource( resource_type );
+                bool invoked = false;
+
+                /* identify max amount of ec2s being invoked */
+                if ( resource_type == "ec2" )
+                {
+
+                    /* Search the message for the amount of invocations */
+                    std::size_t first = message_str.find( "MaxCount=" );
+                    std::size_t last = message_str.find( "POST" );
+                    std::size_t str_len = strlen( "MaxCount=" );
+
+                    if ( ( first != std::string::npos ) && ( last != std::string::npos ) )
+                    {
+
+                        int count_requested = stoi( message_str.substr( ( first + str_len ), 
+                            ( last - ( first + str_len ) ) ) );
+
+
+                        /* attempt to invoke all at once */
+                        int successful_invokes = cloud_resource_list.invoke_many_resources( resource_type,
+                                                  count_requested );
+                
+                        /* modify http request to amt of approved invocations if necessary */
+                        if ( successful_invokes <= count_requested ) 
+                        {
+                            invoked = true;
+
+                            auto new_request = message_str.replace( ( first + str_len ), 
+                                            sizeof( std::to_string( count_requested ) ),
+                                            std::to_string( successful_invokes ) );
+
+                            cerr << new_request << endl;
+		            /* never deliver original to server */
+		            request_parser.pop();
+                    
+                            /* deliver modified request */
+                            request_parser.parse( new_request );
+                            
+                            invoked = true;
+
+                        }
+                    }
+                    else {
+
+                        throw runtime_error( "EC2 RunInstances request is abnormal. Please inspect" );
+
+                    }
+
+                }
+                /* Not EC2 */
+                else {
+
+                    /* Attempt to invoke cloud resource object */
+                    invoked = cloud_resource_list.invoke_resource( resource_type );
+                }
 
 	        /* remove invocations that go above invoke limit */
                 if ( not invoked) {
@@ -84,7 +137,7 @@ void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & re
                 }
             }
 
-	    cerr << message.str() << endl;
+	    //cerr << message.str() << endl;
 
         }
     

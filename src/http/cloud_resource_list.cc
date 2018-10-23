@@ -16,9 +16,6 @@ bool CloudResourceList::invoke_resource( const std::string & resource_type )
         
         cloud_resource_list_[ "invoked" ].push_back( curr );
 
-        //for debug
-        print_resources();
-       
         return true;
 
     }
@@ -29,15 +26,37 @@ bool CloudResourceList::invoke_resource( const std::string & resource_type )
 
         cloud_resource_list_[ "blocked" ].push_back( curr );
        
-        //for debug
-        print_resources();
- 
         return false;
 
     }    
 
 }
 
+/* returns how many resources it was able to succesfully invoke */
+int CloudResourceList::invoke_many_resources( const std::string & resource_type, int count_requested )
+{
+
+    bool invoked = false;
+    int invoke_count = 0;
+
+    /* invoke each ec2 individually */
+    for ( int i = 0; i < count_requested; i++ )
+    {
+
+        invoked = this->invoke_resource( resource_type );
+
+        if ( invoked ) 
+        {
+
+            invoke_count += 1;
+        
+        }
+
+    }
+
+    return invoke_count;
+
+}
 
 int CloudResourceList::get_total_resource_count() 
 {
@@ -81,7 +100,7 @@ void CloudResourceList::assign_resource_id( std::string & resource_name, std::st
     /* Something is not right if we haven't returned yet...more instance ids than
      * allowed cloud resources...
      */
-    throw runtime_error( " Failed to assign resource id to available cloud resource." );
+    throw runtime_error( "Failed to assign resource id to available cloud resource." );
 
 }
 
@@ -109,7 +128,7 @@ void CloudResourceList::print_resources()
 
     terminate_all_ec2s();
     
-    if (not printed) 
+    if ( not printed ) 
     {
         cerr << "There are no lingering resources!" << endl;
     }
@@ -148,7 +167,7 @@ void CloudResourceList::terminate_all_ec2s()
     }
 
     /* formatting */
-    if( printed ) 
+    if ( printed ) 
     {
         cerr << endl;
     }

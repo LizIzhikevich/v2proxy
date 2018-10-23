@@ -31,6 +31,7 @@ public:
     virtual ~CloudResourceList() {}
     
     bool invoke_resource( const std::string & resource_type );
+    int invoke_many_resources( const std::string & resource_type, int count_requested );
 
     void assign_resource_id( std::string & resource_name, std::string & instance_id );
 
