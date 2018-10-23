@@ -26,6 +26,8 @@ private:
 
     SSLContext server_context_, client_context_;
 
+    std::string get_canned_response( const int status, const HTTPRequest & request );
+
 public:
     HTTPProxy( const Address & listener_addr );
 

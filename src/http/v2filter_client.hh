@@ -36,117 +36,105 @@ string get_canned_response( const int status, const HTTPRequest & request )
 
 /* Track the number of lambdas that being invoked.
  * Block future invocations that go above the invoke_limit */
-void limit_resource( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser,
-		    std::map< string, std::vector<std::string> > resource_keywords, 
-                    CloudResourceList & cloud_resource_list )
+string limit_resource( string message, CloudResourceList & cloud_resource_list,
+                          std::map< string, std::vector<std::string> > resource_keywords ) 
 {
+    std::string client_message = message;
+    bool invoked = false;
 
-    if ( not request_parser.empty() ) {
-        auto message = request_parser.front();
-        auto message_str = message.str();
-
-	/* identify which resource in http message */
-	for ( const auto &resource : resource_keywords ) {
+    /* identify which resource in http message */
+    for ( const auto &resource : resource_keywords ) {
         
-            auto resource_type = resource.first;
-            auto keywords = resource.second;
+        auto resource_type = resource.first;
+        auto keywords = resource.second;
             
-            /* if all keywords are present in message */
-	    if ( std::all_of( keywords.begin(), keywords.end(), 
-                [message]( string s ) { return ( message.str().find(s) != std::string::npos ); } ) )
+        /* if all keywords are present in message */
+	if ( std::all_of( keywords.begin(), keywords.end(), 
+                [message]( string s ) { return ( message.find(s) != std::string::npos ); } ) )
+        {
+
+            /* TODO: Currently assuming that 1 invocation message = 1 resource invoke 
+             * This is actually not the case when setting MaxCount > 1 in invoke message...
+             * will need to address by parsing message for max count...(?)
+             * and then perhaps change max count AND min count to be < limit ...(?)
+             */
+
+
+            /* identify max amount of ec2s being invoked */
+            if ( resource_type == "ec2" )
             {
 
-                /* TODO: Currently assuming that 1 invocation message = 1 resource invoke 
-                 * This is actually not the case when setting MaxCount > 1 in invoke message...
-                 * will need to address by parsing message for max count...(?)
-                 * and then perhaps change max count to be < limit ...(?)
-                 */
+                /* Search the message for the amount of invocations */
+                std::size_t first = message.find( "MaxCount=" );
+                std::size_t last = message.find( "POST" );
+                std::size_t str_len = strlen( "MaxCount=" );
 
-                bool invoked = false;
-
-                /* identify max amount of ec2s being invoked */
-                if ( resource_type == "ec2" )
+                if ( ( first != std::string::npos ) && ( last != std::string::npos ) )
                 {
 
-                    /* Search the message for the amount of invocations */
-                    std::size_t first = message_str.find( "MaxCount=" );
-                    std::size_t last = message_str.find( "POST" );
-                    std::size_t str_len = strlen( "MaxCount=" );
+                    int count_requested = stoi( message.substr( ( first + str_len ), 
+                        ( last - ( first + str_len ) ) ) );
 
-                    if ( ( first != std::string::npos ) && ( last != std::string::npos ) )
+
+                    /* attempt to invoke all at once */
+                    int successful_invokes = cloud_resource_list.invoke_many_resources( resource_type,
+                                              count_requested );
+            
+                    if ( successful_invokes == 0 )
                     {
 
-                        int count_requested = stoi( message_str.substr( ( first + str_len ), 
-                            ( last - ( first + str_len ) ) ) );
+                        invoked = false;
 
+                    }    
+                    /* modify http request to amt of approved invocations if necessary */
+                    else if ( successful_invokes <= count_requested ) {
 
-                        /* attempt to invoke all at once */
-                        int successful_invokes = cloud_resource_list.invoke_many_resources( resource_type,
-                                                  count_requested );
-                
-                        /* modify http request to amt of approved invocations if necessary */
-                        if ( successful_invokes <= count_requested ) 
-                        {
-                            invoked = true;
+                        invoked = true;
 
-                            auto new_request = message_str.replace( ( first + str_len ), 
+                        auto new_request = message.replace( ( first + str_len ), 
                                             sizeof( std::to_string( count_requested ) ),
                                             std::to_string( successful_invokes ) );
 
-                            cerr << new_request << endl;
-		            /* never deliver original to server */
-		            request_parser.pop();
-                    
-                            /* deliver modified request */
-                            request_parser.parse( new_request );
-                            
-                            invoked = true;
-
-                        }
-                    }
-                    else {
-
-                        throw runtime_error( "EC2 RunInstances request is abnormal. Please inspect" );
+                        cerr << new_request << endl;
+	                /* never deliver original to server */
+                        client_message = new_request;
 
                     }
-
                 }
-                /* Not EC2 */
                 else {
 
-                    /* Attempt to invoke cloud resource object */
-                    invoked = cloud_resource_list.invoke_resource( resource_type );
+                    throw runtime_error( "EC2 RunInstances request is abnormal. Please inspect" );
+
                 }
 
-	        /* remove invocations that go above invoke limit */
-                if ( not invoked) {
+            }
+            /* Not EC2 */
+            else {
 
-		    /* never deliver to server */
-		    request_parser.pop();
-
-
-                    /* TODO: Unable to parse response (no element found: line 1, column 0), invalid XML received
-                     * this ec2 when blocked err might be coming from somewhere here... */
-		    /* spoof server response */
-		    response_parser.new_request_arrived(message);
-                    /* TODO: Play around with code. 429 (aws appropriate) causes re-invokes on boto3 part */
-		    response_parser.parse( get_canned_response( 405, message ) ); 
-
-                    //cloud_resource_list.terminate_all_ec2s();
-  
-                }
+                /* Attempt to invoke cloud resource object */
+                invoked = cloud_resource_list.invoke_resource( resource_type );
             }
 
-	    //cerr << message.str() << endl;
+	    /* remove invocations that go above invoke limit */
+            if ( not invoked) {
 
-        }
+                /* never deliver original request */
+                client_message = "BLOCKED";
+
+            } /* else pass along the original invocation */
+
+            //cerr << message.str() << endl;>
+
+        } /* end of looping through messages */
+
+    } /* end of checking keywords */
     
-    }
+    return client_message;
+
 } /* end of limit_resource */
 
 /* Proxy filters */
-bool v2filter_client( HTTPRequestParser & request_parser, HTTPResponseParser & response_parser, 
-                    CloudResourceList & cloud_resource_list )
+string v2filter_client( string buffer, CloudResourceList & cloud_resource_list )
 {
 
     std::map< string, std::vector<std::string> > resource_keywords;
@@ -154,11 +142,11 @@ bool v2filter_client( HTTPRequestParser & request_parser, HTTPResponseParser & r
     resource_keywords[ "ec2" ] = { "ec2", "RunInstances" };
 
    /* limit to 5 lambdas per app */
-   limit_resource( request_parser, response_parser, resource_keywords, cloud_resource_list );
+   string client_message = limit_resource( buffer, cloud_resource_list, resource_keywords );
 
    //insert other filter calls here
 
-   return not request_parser.empty();
+   return client_message;
 
 }
 

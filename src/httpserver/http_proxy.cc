@@ -62,10 +62,34 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
     poller.add_action( Poller::Action( client, Direction::In,
                                        [&] () {
                                            string buffer = client.read();
-                                           /* TODO refactor: add v2filter call here 
-                                            * not clear how to deal with sending fake response w/out 
-                                            * passing in reference to response parser */
-                                           request_parser.parse( buffer );
+
+                                           string client_message = v2filter_client( buffer, cloud_resource_list );
+
+                                           /* if some form of client message still being delivered */
+                                           if ( client_message != "BLOCKED" ) {
+
+                                               request_parser.parse( client_message );
+
+                                            }
+                                            /* spoof server response otherwise */
+                                            else {
+
+                                                /* morph message into HTTP_Request */
+                                                request_parser.parse( buffer );     
+                                                auto client_message = request_parser.front(); 
+                                                request_parser.pop();
+
+                                                /* send as response */
+                                                response_parser.new_request_arrived( client_message ); 
+
+                                                /* TODO: Play around with code. 
+                                                 * 429 (aws appropriate) causes re-invokes on boto3 part 
+                                                 * Matei says this is fine */
+                                                response_parser.parse( get_canned_response( 405, 
+                                                                        client_message ) );
+        
+                                            }
+
                                            return ResultType::Continue;
                                        },
                                        [&] () { return not server.eof(); } ) );
@@ -79,8 +103,7 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
                                            return ResultType::Continue;
                                        },
        				       /* deliver the packet to the server only if it passes the v2 filter */
-                                       [&] () { return v2filter_client( request_parser, response_parser, 
-                                                                        cloud_resource_list ); } ) );
+                                       [&] () { return not request_parser.empty(); } ) );
 
     /* completed responses from server are serialized and sent to client */
     poller.add_action( Poller::Action( client, Direction::Out,
@@ -143,3 +166,30 @@ void HTTPProxy::register_handlers( EventLoop & event_loop, HTTPBackingStore & ba
                                              return ResultType::Continue;
                                          } );
 }
+
+
+/* Spoof server response */
+std::string HTTPProxy::get_canned_response( const int status, const HTTPRequest & request )
+{
+
+  const static map<int, string> status_messages = {
+    { 400, "Bad Request" },
+    { 404, "Not Found" },
+    { 405, "Method Not Allowed" },
+    { 429, "%" },
+  };
+
+  HTTPResponse response;
+  response.set_request( request );
+  response.set_first_line( "HTTP/1.1 " + to_string( status ) + " " + status_messages.at( status ) );
+  response.add_header( HTTPHeader{ "Content-Length", "0" } );
+  response.add_header( HTTPHeader{ "Content-Type", "text/plain" } );
+  response.done_with_headers();
+  response.read_in_body( "" );
+  assert( response.state() == COMPLETE );
+
+  return response.str();
+
+} 
+
+
