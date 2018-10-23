@@ -52,8 +52,11 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
     poller.add_action( Poller::Action( server, Direction::In,
                                        [&] () {
                                            string buffer = server.read();
-                                           /* TODO refactor: add v2filter call here */ 
+
+                                           v2filter_server( buffer, cloud_resource_list );
+
                                            response_parser.parse( buffer );
+
                                            return ResultType::Continue;
                                        },
                                        [&] () { return not client.eof(); } ) );
@@ -83,8 +86,7 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
                                                 response_parser.new_request_arrived( client_message ); 
 
                                                 /* TODO: Play around with code. 
-                                                 * 429 (aws appropriate) causes re-invokes on boto3 part 
-                                                 * Matei says this is fine */
+                                                 * 429 (aws appropriate) causes re-invokes on boto3 part */
                                                 response_parser.parse( get_canned_response( 405, 
                                                                         client_message ) );
         
@@ -113,7 +115,7 @@ void HTTPProxy::loop( SocketType & server, SocketType & client, HTTPBackingStore
                                            response_parser.pop();
                                            return ResultType::Continue;
                                        },
-                                       [&] () { return v2filter_server( response_parser, cloud_resource_list ); } ) );
+                                       [&] () {  return not response_parser.empty(); } ) );
 
     while ( true ) {
         if ( poller.poll( -1 ).result == Poller::Result::Type::Exit ) {
