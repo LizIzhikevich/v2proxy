@@ -120,6 +120,7 @@ AC_CONFIG_FILES([Makefile
 		 src/util/Makefile
 		 src/packet/Makefile
 		 src/graphing/Makefile
+		 src/cloud/Makefile
 		 src/http/Makefile
 		 src/httpserver/Makefile
 		 src/frontend/Makefile

@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I$(srcdir)/../util -I../protobufs $(CXX11_FLAGS)
+AM_CPPFLAGS = -I$(srcdir)/../util -I$(srcdir)/../cloud -I../protobufs $(CXX11_FLAGS)
 AM_CXXFLAGS = $(PICKY_CXXFLAGS)
 
 noinst_LIBRARIES = libhttp.a
@@ -14,7 +14,5 @@ libhttp_a_SOURCES = http_request_parser.hh \
         http_message.hh http_message.cc \
         http_message_sequence.hh \
         backing_store.hh backing_store.cc \
-        cloud_resource.hh cloud_resource.cc \
-        cloud_resource_list.hh cloud_resource_list.cc \ 
         v2filter_client.hh \
-	v2filter_server.hh
+        v2filter_server.hh

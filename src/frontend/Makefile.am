@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I../protobufs -I$(srcdir)/../util -I$(srcdir)/../packet -I$(srcdir)/../graphing -I$(srcdir)/../http -I$(srcdir)/../httpserver $(XCBPRESENT_CFLAGS) $(XCB_CFLAGS) $(PANGOCAIRO_CFLAGS) $(CXX11_FLAGS)
+AM_CPPFLAGS = -I../protobufs -I$(srcdir)/../util -I$(srcdir)/../cloud -I$(srcdir)/../packet -I$(srcdir)/../graphing -I$(srcdir)/../http -I$(srcdir)/../httpserver $(XCBPRESENT_CFLAGS) $(XCB_CFLAGS) $(PANGOCAIRO_CFLAGS) $(CXX11_FLAGS)
 AM_CXXFLAGS = $(PICKY_CXXFLAGS)
 
 bin_PROGRAMS = mm-delay
@@ -28,7 +28,7 @@ mm_meter_LDFLAGS = -pthread
 
 bin_PROGRAMS += mm-webrecord
 mm_webrecord_SOURCES = recordshell.cc
-mm_webrecord_LDADD = -lrt ../httpserver/libhttpserver.a ../http/libhttp.a ../protobufs/libhttprecordprotos.a ../util/libutil.a $(protobuf_LIBS) $(libcrypto_LIBS) $(libssl_LIBS)
+mm_webrecord_LDADD = -lrt ../httpserver/libhttpserver.a ../http/libhttp.a ../protobufs/libhttprecordprotos.a ../cloud/libcloud.a ../util/libutil.a $(protobuf_LIBS) $(libcrypto_LIBS) $(libssl_LIBS)
 mm_webrecord_LDFLAGS = -pthread
 
 bin_PROGRAMS += mm-webreplay
