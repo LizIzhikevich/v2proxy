@@ -146,6 +146,12 @@ void CloudResourceList::terminate_all_ec2s()
         }
 
     }
+
+    /* formatting */
+    if( printed ) 
+    {
+        cerr << endl;
+    }
 }
 
 /* TODO: Calculate total cost of resources */
