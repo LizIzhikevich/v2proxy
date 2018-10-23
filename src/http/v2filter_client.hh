@@ -9,31 +9,6 @@
 
 using namespace std;
 
-/* Spoof server response */
-string get_canned_response( const int status, const HTTPRequest & request )
-{
-  const static map<int, string> status_messages = {
-    { 400, "Bad Request" },
-    { 404, "Not Found" },
-    { 405, "Method Not Allowed" },
-    { 429, "%" },
-  };
-
-  HTTPResponse response;
-  response.set_request( request );
-  response.set_first_line( "HTTP/1.1 " + to_string( status ) + " " + status_messages.at( status ) );
-  response.add_header( HTTPHeader{ "Content-Length", "0" } );
-  response.add_header( HTTPHeader{ "Content-Type", "text/plain" } );
-  response.done_with_headers();
-  response.read_in_body( "" );
-  assert( response.state() == COMPLETE );
-
-  return response.str(); 
-
-
-}
-
-
 /* Track the number of lambdas that being invoked.
  * Block future invocations that go above the invoke_limit */
 string limit_resource( string message, CloudResourceList & cloud_resource_list,
