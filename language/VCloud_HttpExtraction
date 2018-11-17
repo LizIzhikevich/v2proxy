@@ -1,0 +1,257 @@
+------------------------------------------------------------------------------------
+HttpRequest Parsing
+------------------------------------------------------------------------------------
+
+# turn the above into a general resource object
+
+# extract the resource type which will appear as the first field in the host string
+# can't do pattern extraction since no consistency across resources 
+
+
+
+extractResourceType( request ) {
+
+    for resource_type in availableResourceList: # [ 's3', 'ec2', 'lambda' ]
+	if ( resource_type.checkMatch (request[ 'Host' ] ) ) 
+	    return resource_type
+    
+    return NONE_MATCHING
+		
+}
+
+resource_type = extractResourceType( request )
+
+# extract the action based on the resource type
+action = resource_type.extractAction( request )
+
+
+------------------------------------------------------------------------------------
+HttpResponse Parsing
+------------------------------------------------------------------------------------
+
+
+
+
+------------------------------------------------------------------------------------
+S3 HTTP Request (POST):
+------------------------------------------------------------------------------------
+
+
+POST / HTTP/1.1
+Host: johnsmith.s3.amazonaws.com
+User-Agent: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.10) Gecko/20071115 Firefox/2.0.0.10
+Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+Accept-Language: en-us,en;q=0.5
+Accept-Encoding: gzip,deflate
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Keep-Alive: 300
+Connection: keep-alive
+Content-Type: multipart/form-data; boundary=9431149156168
+Content-Length: 118698 
+
+--9431149156168
+Content-Disposition: form-data; name="key"
+
+user/eric/MyPicture.jpg
+--9431149156168
+Content-Disposition: form-data; name="acl"
+
+public-read
+--9431149156168
+Content-Disposition: form-data; name="success_action_redirect"
+
+http://johnsmith.s3.amazonaws.com/successful_upload.html
+
+/* More Content Stuff goes here */
+
+------------------------------------------------------------------------------------
+INVOKE: Lambda HTTP Request (POST):
+------------------------------------------------------------------------------------
+
+
+
+POST /2015-03-31/functions/Hello_World/invocations HTTP/1.1
+Host: lambda.us-east-1.amazonaws.com
+Accept-Encoding: identity
+X-Amz-Log-Type: Tail
+X-Amz-Invocation-Type: RequestResponse
+User-Agent: Boto3/1.4.2 Python/2.7.15rc1 Linux/4.4.0-134-generic Botocore/1.8.48
+
+X-Amz-Date: 20181029T065155Z
+Authorization: AWS4-HMAC-SHA256 Credential=AKIAVULDE4VLWTEM7MN3/20181029/us-east-1/lambda/aws4_request, SignedHeaders=host;x-amz-date;x-amz-invocation-type;x-amz-log-type, Signature=b3915a35749de144a6f504f14aea032416aa8c10ed010b750cd95ef56412276c
+Content-Length: 0
+
+------------------------------------------------------------------------------------
+INVOKE: EC2 HTTP Request (POST):
+------------------------------------------------------------------------------------
+
+
+54.239.28.168
+POST / HTTP/1.1
+Host ec2.us-east-1.amazonaws.com
+Accept-Encoding identity@
+
+Content-Type 0application/x-www-form-urlencoded; charset=utf-8 S
+
+User-Agent Eaws-cli/1.16.27 Python/3.6.5 Linux/4.4.0-134-generic botocore/1.12.17
+
+X-Amz-Date20181005T043106Z
+Authorization AWS4-HMAC-SHA256 Credential=AKIAVULDE4VLWTEM7MN3/20181005/us-east-1/ec2/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=0963074b35c3fd3d9efc4e1d5f76383013131c78a526b4b4987338a7a743ceca
+Content-Length130 Action=RunInstances&Version=2016-11-15&ImageId=ami-0e6d2e8684d4ccb3e&InstanceType=t2.micro&KeyName=Liz%40mac&MinCount=1&MaxCount=1*�!
+
+
+------------------------------------------------------------------------------------
+TERMINATE: EC2 HTTP Request (POST):
+------------------------------------------------------------------------------------
+
+
+54.239.28.168�"�
+POST / HTTP/1.1#
+Host ec2.us-east-1.amazonaws.com
+Accept-Encodinidentity@
+
+Content-Type0application/x-www-form-urlencoded; charset=utf-8S
+
+User-AgentEaws-cli/1.16.27 Python/3.6.5 Linux/4.4.0-134-generic botocore/1.12.17
+
+X-Amz-Date20181005T043237Z�
+Authorization�AWS4-HMAC-SHA256 Credential=AKIAVULDE4VLWTEM7MN3/20181005/us-east-1/ec2/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=c35348adc9c79bd45bfcff960900147952fa61d13fd8a07598106e3b9719be09
+Content-Length77MAction=TerminateInstances&Version=2016-11-15&InstanceId.1=i-0c9e2dc973a20688f*�
+
+------------------------------------------------------------------------------------
+TERMINATE: EC2 HTTP Response (OK):
+------------------------------------------------------------------------------------
+
+
+HTTP/1.1 200 OK&
+
+Content-Typetext/xml;charset=UTF-8
+Transfer-Encodingchunked
+VaryAccept-Encoding%
+DateFri, 05 Oct 2018 04:32:37 GMT
+Server	AmazonEC2�251
+<?xml version="1.0" encoding="UTF-8"?>
+<TerminateInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+    <requestId>f49d4035-e310-43fe-a236-12c504111cfd</requestId>
+    <instancesSet>
+        <item>
+            <instanceId>i-0c9e2dc973a20688f</instanceId>
+            <currentState>
+                <code>32</code>
+                <name>shutting-down</name>
+            </currentState>
+            <previousState>
+                <code>16</code>
+                <name>running</name>
+            </previousState>
+        </item>
+    </instancesSet>
+</TerminateInstancesResponse>
+0
+
+------------------------------------------------------------------------------------
+INVOKE: EC2 HTTP Response (OK):
+------------------------------------------------------------------------------------
+
+
+
+HTTP/1.1 200 OK&
+
+Content-Typetext/xml;charset=UTF-8
+Content-Length4090
+VaryAccept-Encoding%
+DateFri, 05 Oct 2018 04:31:07 GMT
+Server	AmazonEC2�<?xml version="1.0" encoding="UTF-8"?>
+<RunInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+    <requestId>4fdc5f7e-d1b6-45a1-a752-3d40110e30a7</requestId>
+    <reservationId>r-040eac18543ed7578</reservationId>
+    <ownerId>387291866455</ownerId>
+    <groupSet/>
+    <instancesSet>
+        <item>
+            <instanceId>i-0c9e2dc973a20688f</instanceId>
+            <imageId>ami-0e6d2e8684d4ccb3e</imageId>
+            <instanceState>
+                <code>0</code>
+                <name>pending</name>
+            </instanceState>
+            <privateDnsName>ip-172-31-61-138.ec2.internal</privateDnsName>
+            <dnsName></dnsName>
+            <reason></reason>
+            <keyName>Liz@mac</keyName>
+            <amiLaunchIndex>0</amiLaunchIndex>
+            <productCodes/>
+            <instanceType>t2.micro</instanceType>
+            <launchTime>2018-10-05T04:31:07.000Z</launchTime>
+            <placement>
+                <availabilityZone>us-east-1c</availabilityZone>
+                <groupName></groupName>
+                <tenancy>default</tenancy>
+            </placement>
+            <monitoring>
+                <state>disabled</state>
+            </monitoring>
+            <subnetId>subnet-a9b62883</subnetId>
+            <vpcId>vpc-6df21a0a</vpcId>
+            <privateIpAddress>172.31.61.138</privateIpAddress>
+            <sourceDestCheck>true</sourceDestCheck>
+            <groupSet>
+                <item>
+                    <groupId>sg-c5302bbd</groupId>
+                    <groupName>default</groupName>
+                </item>
+            </groupSet>
+            <stateReason>
+                <code>pending</code>
+                <message>pending</message>
+            </stateReason>
+            <architecture>x86_64</architecture>
+            <rootDeviceType>ebs</rootDeviceType>
+            <rootDeviceName>/dev/xvda</rootDeviceName>
+            <blockDeviceMapping/>
+            <virtualizationType>hvm</virtualizationType>
+            <clientToken></clientToken>
+            <hypervisor>xen</hypervisor>
+            <networkInterfaceSet>
+                <item>
+                    <networkInterfaceId>eni-09e10126fe9694d6c</networkInterfaceId>
+                    <subnetId>subnet-a9b62883</subnetId>
+                    <vpcId>vpc-6df21a0a</vpcId>
+                    <description></description>
+                    <ownerId>387291866455</ownerId>
+                    <status>in-use</status>
+                    <macAddress>12:9c:b2:2d:13:56</macAddress>
+                    <privateIpAddress>172.31.61.138</privateIpAddress>
+                    <privateDnsName>ip-172-31-61-138.ec2.internal</privateDnsName>
+                    <sourceDestCheck>true</sourceDestCheck>
+                    <groupSet>
+                        <item>
+                            <groupId>sg-c5302bbd</groupId>
+                            <groupName>default</groupName>
+                        </item>
+                    </groupSet>
+                    <attachment>
+                        <attachmentId>eni-attach-097ceb0d5a9077231</attachmentId>
+                        <deviceIndex>0</deviceIndex>
+                        <status>attaching</status>
+                        <attachTime>2018-10-05T04:31:07.000Z</attachTime>
+                        <deleteOnTermination>true</deleteOnTermination>
+                    </attachment>
+                    <privateIpAddressesSet>
+                        <item>
+                            <privateIpAddress>172.31.61.138</privateIpAddress>
+                            <privateDnsName>ip-172-31-61-138.ec2.internal</privateDnsName>
+                            <primary>true</primary>
+                        </item>
+                    </privateIpAddressesSet>
+                    <ipv6AddressesSet/>
+                </item>
+            </networkInterfaceSet>
+            <ebsOptimized>false</ebsOptimized>
+            <cpuOptions>
+                <coreCount>1</coreCount>
+                <threadsPerCore>1</threadsPerCore>
+            </cpuOptions>
+        </item>
+    </instancesSet>
+</RunInstancesResponse>

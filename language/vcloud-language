@@ -1,0 +1,317 @@
+-------------------------------------------------------------------------------
+Hierarchy 
+-------------------------------------------------------------------------------
+
+
+
+	EC2, Lambda, S3, Etc
+	|	|
+	Resource_Type
+	|	|
+
+HTTPRequest / HTTPResponse
+
+
+-------------------------------------------------------------------------------
+PROGRAMMABLE POLICIES & SIGNALS
+-------------------------------------------------------------------------------
+
+# purpose: protect certain resources from being terminated by users
+# other than owner (and organization)
+# also make sure that non-owners are not able to change labels to break
+# this policy
+define policy resource limitDestruction {
+
+    if resource.owner != $user :
+
+	if resource.label contains "my_life's_work": 
+
+	    protect delete 
+
+	protect change_label 
+
+    else : allow 
+
+}
+
+
+#Is this a policy? its more like a signal...should probably differentiate?
+# purpose: print out the commands needed to terminate all cloud resources of this
+# particular app
+# differentiates b/w user invoked and app invoked (potentially output of program)
+# resources
+
+define signal app cleanUp {
+
+    for id in app.resourcelist:
+
+	if resourceList[id].invoke_origin == app.owner: 
+	    print "client invoked: "
+	else:
+	    print "app invoked: "
+
+	print resource.terminate_command(id)
+	
+
+}
+
+run {
+
+    appliedPolicies = [ limitDestruction ] #add More
+    appliedSignals = [ cleanUp ]
+
+    ./proxy 
+
+} &
+
+-------------------------------------------------------------------------------
+DEFINED OBBJECTS & FUNCTIONS
+-------------------------------------------------------------------------------
+
+
+protect( action ) {
+
+    if this.action == action:
+	return false
+    else:
+	return true 
+
+}
+
+
+# purpose: to keep track of resources and choose to deliver or block
+define proxy request {
+
+    resource_type = extractResourceType( request )  # e.g., ec2, s3, lambda
+
+    action = resource_type.extractAction( request ) # e.g., invoke, terminate, delete
+
+    resource = resource_type.assignResourceObject( action, request )
+
+    # speculatively try out the action and see if proxy will approve it
+    success = spec_apply( resource, action, this.app )
+
+    # need to figure out if Delete, for ex, how to extract actual resource 
+
+    if success:
+	deliver 
+
+    else:
+	block
+	send_response_back
+
+}
+
+define proxy response {
+
+        resource_type = extractResourceType( request )  # e.g., ec2, s3, lambda
+
+
+    for resource in resource_awaiting_pool:
+	
+
+    # save mapping from resource-id to resource object itself
+    app.resourceList[ resource[id] ] = resource 
+
+
+
+    ************************************TODO: NEXT IMPLEMENT ************************************
+    # update the resource list 
+    apply( resource, action, this.app )
+
+
+
+
+
+}
+
+#not sure what to make this method a part of
+spec_apply( resource, action, app ) {
+
+    for policy in appliedPolicies:
+
+	if policy.invoke( resource, action, app ) != pass:
+	    return false
+    
+    return true	    
+
+}
+
+TODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODO
+
+How to keep track of when a resource is terminated 
+Ideally want resources to keep their own state 
+
+TODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODO
+
+define app * { # for all apps 
+
+    resourceList = map < id, resource >
+    owner = $user
+
+
+}
+
+
+-------------------------------------------------------------------------------
+RESOURCE ABSTRACTION
+-------------------------------------------------------------------------------
+
+
+resource {
+
+    id = null
+
+    # a resource is 'dead' until actually invoked
+    alive = false
+
+    terminate_command( this_id )
+    invoke_origin : client[ original_dest_addr ] 
+    owner = $user
+    label : http_message[ label ]
+    resource_list<resource>
+
+    # see if the httpMessage is reffering to this particular resource
+    checkMatch( request_host )
+
+    # figure out which action is in httpMessage
+    extractAction( request )
+
+    # depending upon the action in the http message, we will either
+    # create an independent object that will keep track of its state
+    # or assign the action to an already existing object
+    assignResourceObject( action, request )
+
+    resource( id ) : this.id = id
+
+
+
+    assignResourceOject( action, id ) {
+
+        switch( action ) {
+
+	    INVOKE:
+		    
+		resource = resource( id )
+	        resource_list[ id ].add( resource ) 
+		return resource
+		    
+	    READ:
+		return resource_list[ id ]
+
+	    DELETE:
+		return resource_list[ id ]
+
+
+	}
+
+
+    }  
+
+
+    s3 {
+
+	terminate_command( this_id ) : "aws s3api delete-bucket --bucket " + id
+
+	# johnsmith.s3.amazonaws.com
+	checkMatch( request_host ): return ( request_host[ request_host.find(‘.’): 
+			request_host.find(‘amazonaws’)] == ‘s3’ )
+
+	extractAction( request ) {
+		switch ( request[type] ) {
+
+			POST: return INVOKE
+			PUT: return INVOKE
+			DELETE: return DELETE
+			GET: return READ
+			default: UNDEFINED
+			
+		}                       
+		
+	}  
+
+
+	assignResourceOject( action, request ) {
+
+	    id = request[ Bucket ] + request[ Key ]
+
+	    resource = super.assignResourceOject( action, id )
+	    
+	    return resource
+	}
+
+
+    }
+
+    ec2 {
+
+	terminate_command( this_id ): "aws ec2 terminate-instances --instance-ids " + this_id
+
+	# ec2.us-east-1.amazonaws.com
+	checkMatch( request_host ): return ( request_host[ 0:request_host.find('.') ] == ‘ec2’ )
+
+	extractAction( request ) {
+		switch ( request[‘Action’] ) {
+
+			RunInstances : return INVOKE
+			TerminateInstances : return DELETE
+			default: UNDEFINED
+
+		}		
+	}
+
+
+	assignResourceOject( action, request ) {
+
+	    # TODO: Not clear what to fill in here temporarily since instanceID doesnt exist
+	    # until we parse the response...
+	    id : request[ instanceID ] 
+
+	    resource = super.assignResourceOject( action, id )
+	    
+	    return resource
+	}
+
+	
+
+    }
+    
+    lambda {
+
+	terminate_command( this_id ): "there is no command to terminate a lambda"
+
+	# lambda.us-east-1.amazonaws.com
+	checkMatch( request_host ): return ( request_host[ 0:request_host.find('.') ] == ‘lambda’ )
+
+	extractAction( request ) {
+		switch ( request[type] ) {
+
+			POST : return INVOKE
+			default: UNDEFINED
+
+		}		
+	}
+
+	assignResourceOject( action, request ) {
+
+	    # TODO: Not clear what to fill in here temporarily since instanceID doesnt exist
+	    # until we parse the response...
+	    id : http_message[ requestID ]
+
+	    resource = super.assignResourceOject( action, id )
+	    
+	    return resource
+	}
+
+
+
+    }
+
+}
+
+-------------------------------------------------------------------------------
+Side Notes
+-------------------------------------------------------------------------------
+
++ to make sure user restrictions don't override org ones, first apply user ones and then have org ones overwrite any that user might have written (aka org restrictions applied last with sudo permissions )
+
