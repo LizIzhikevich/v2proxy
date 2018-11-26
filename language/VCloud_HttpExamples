@@ -1,38 +1,4 @@
 ------------------------------------------------------------------------------------
-HttpRequest Parsing
-------------------------------------------------------------------------------------
-
-# turn the above into a general resource object
-
-# extract the resource type which will appear as the first field in the host string
-# can't do pattern extraction since no consistency across resources 
-
-
-
-extractResourceType( request ) {
-
-    for resource_type in availableResourceList: # [ 's3', 'ec2', 'lambda' ]
-	if ( resource_type.checkMatch (request[ 'Host' ] ) ) 
-	    return resource_type
-    
-    return NONE_MATCHING
-		
-}
-
-resource_type = extractResourceType( request )
-
-# extract the action based on the resource type
-action = resource_type.extractAction( request )
-
-
-------------------------------------------------------------------------------------
-HttpResponse Parsing
-------------------------------------------------------------------------------------
-
-
-
-
-------------------------------------------------------------------------------------
 S3 HTTP Request (POST):
 ------------------------------------------------------------------------------------
 
@@ -67,7 +33,6 @@ http://johnsmith.s3.amazonaws.com/successful_upload.html
 ------------------------------------------------------------------------------------
 INVOKE: Lambda HTTP Request (POST):
 ------------------------------------------------------------------------------------
-
 
 
 POST /2015-03-31/functions/Hello_World/invocations HTTP/1.1

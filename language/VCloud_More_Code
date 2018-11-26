@@ -1,39 +1,35 @@
 -------------------------------------------------------------------------------
-Hierarchy 
--------------------------------------------------------------------------------
-
-
-
-	EC2, Lambda, S3, Etc
-	|	|
-	Resource_Type
-	|	|
-
-HTTPRequest / HTTPResponse
-
-
--------------------------------------------------------------------------------
 PROGRAMMABLE POLICIES & SIGNALS
 -------------------------------------------------------------------------------
 
 # purpose: protect certain resources from being terminated by users
 # other than owner (and organization)
-# also make sure that non-owners are not able to change labels to break
-# this policy
+
 define policy resource limitDestruction {
 
     if resource.owner != $user :
 
-	if resource.label contains "my_life's_work": 
+	if resource.key_name contains "my_life's_work": 
 
 	    protect delete 
 
-	protect change_label 
-
-    else : allow 
+    else: 
+	allow 
 
 }
 
+# purpose: do not allow any resources in the org to talk to 
+# non-stanford domains
+define policy resource informationFlow {
+
+    if resource.host does not contain "www.stanford.edu/":
+	protect all #do not allow GET, POST, etc. 
+
+    else:
+	allow
+	
+
+} 
 
 #Is this a policy? its more like a signal...should probably differentiate?
 # purpose: print out the commands needed to terminate all cloud resources of this
@@ -45,7 +41,7 @@ define signal app cleanUp {
 
     for id in app.resourcelist:
 
-	if resourceList[id].invoke_origin == app.owner: 
+	if app.resourceList[id].invoke_origin == app.owner: 
 	    print "client invoked: "
 	else:
 	    print "app invoked: "
@@ -57,7 +53,7 @@ define signal app cleanUp {
 
 run {
 
-    appliedPolicies = [ limitDestruction ] #add More
+    appliedPolicies = [ limitDestruction, informationFlow ] #add More
     appliedSignals = [ cleanUp ]
 
     ./proxy 
@@ -74,7 +70,7 @@ protect( action ) {
     if this.action == action:
 	return false
     else:
-	return true 
+	return true   
 
 }
 
@@ -89,43 +85,32 @@ define proxy request {
     resource = resource_type.assignResourceObject( action, request )
 
     # speculatively try out the action and see if proxy will approve it
-    success = spec_apply( resource, action, this.app )
+    allowed = spec_apply( resource, action, this.app )
 
-    # need to figure out if Delete, for ex, how to extract actual resource 
 
-    if success:
+    if allowed:
 	deliver 
 
     else:
 	block
 	send_response_back
 
-}
+} 
 
 define proxy response {
 
-        resource_type = extractResourceType( request )  # e.g., ec2, s3, lambda
+    resource_type = extractResourceType( request )  # e.g., ec2, s3, lambda
 
-
-    for resource in resource_awaiting_pool:
+    # assign response to a resource request 
+    resource = resource_awaiting_pool[resource_type]
 	
-
-    # save mapping from resource-id to resource object itself
-    app.resourceList[ resource[id] ] = resource 
-
-
-
-    ************************************TODO: NEXT IMPLEMENT ************************************
-    # update the resource list 
+    # update the resource list if request succeeded 
+    # implemented in resource class
     apply( resource, action, this.app )
-
-
-
-
 
 }
 
-#not sure what to make this method a part of
+# subroutine: speculatively try out the action and see if proxy will approve it
 spec_apply( resource, action, app ) {
 
     for policy in appliedPolicies:
@@ -136,13 +121,6 @@ spec_apply( resource, action, app ) {
     return true	    
 
 }
-
-TODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODO
-
-How to keep track of when a resource is terminated 
-Ideally want resources to keep their own state 
-
-TODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODO
 
 define app * { # for all apps 
 
@@ -157,22 +135,35 @@ define app * { # for all apps
 RESOURCE ABSTRACTION
 -------------------------------------------------------------------------------
 
+#the following are member fields and functions that children of the resource class
+# (ec2, s3, etc) must implement, if they are not already defined in the resource
+# class themselves 
+#
+# these member fields and functions are used to implement policies
 
 resource {
 
     id = null
+    key_name = null
+
+    resource_list<id,resource>
 
     # a resource is 'dead' until actually invoked
     alive = false
 
+    # return a command that defines how to terminate the particular resource
     terminate_command( this_id )
+
+    # see where the request came from
     invoke_origin : client[ original_dest_addr ] 
+
     owner = $user
-    label : http_message[ label ]
-    resource_list<resource>
+
+    # return the host in http request
+    host: request['Host']
 
     # see if the httpMessage is reffering to this particular resource
-    checkMatch( request_host )
+    checkMatch( host )
 
     # figure out which action is in httpMessage
     extractAction( request )
@@ -182,10 +173,40 @@ resource {
     # or assign the action to an already existing object
     assignResourceObject( action, request )
 
-    resource( id ) : this.id = id
+    # return a label if found in http_message
+    label : request label ]
 
 
+    # update the resource in the resource list
+    apply( resource, action, this.app ) {
 
+        switch( action ) {
+
+	    INVOKE:
+		# save mapping from resource-id to resource object itself
+		app.resourceList[ resource[id] ] = resource 
+
+		# consult the resource method itself in case more needs to be done
+		# lambda: will set the resource to "delete" after a set time
+		# ec2 + s3: dont do anything special
+		resource.apply(action)
+		
+	    READ:
+		#nothing needs to be done with the resource
+		pass
+
+	    DELETE:
+		#remove mapping from resourceList
+		#hypothetically can move to a "deleted" list to keep track
+		resourceList.pop( resouce[id] )
+
+	}
+
+	
+    }
+
+
+    # add the resource to the list if it is an invoke
     assignResourceOject( action, id ) {
 
         switch( action ) {
@@ -209,6 +230,8 @@ resource {
     }  
 
 
+
+    # definitions for S3 resource types 
     s3 {
 
 	terminate_command( this_id ) : "aws s3api delete-bucket --bucket " + id
@@ -243,6 +266,7 @@ resource {
 
     }
 
+    # definitions for EC2 resource types 
     ec2 {
 
 	terminate_command( this_id ): "aws ec2 terminate-instances --instance-ids " + this_id
@@ -263,8 +287,8 @@ resource {
 
 	assignResourceOject( action, request ) {
 
-	    # TODO: Not clear what to fill in here temporarily since instanceID doesnt exist
-	    # until we parse the response...
+	    # TODO:use request[signature] until the response comes back
+	    # with instance id
 	    id : request[ instanceID ] 
 
 	    resource = super.assignResourceOject( action, id )
@@ -272,10 +296,14 @@ resource {
 	    return resource
 	}
 
+	key_name = request['KeyName']
+
+
 	
 
     }
     
+    # definitions for lambda resource types 
     lambda {
 
 	terminate_command( this_id ): "there is no command to terminate a lambda"
@@ -304,6 +332,27 @@ resource {
 	}
 
 
+	# when a lambda in particular gets invoked, take the following special additional steps
+	apply( action ) {
+	    switch ( action ) {
+
+		# set a default expiration time of 5 min to remove this resource
+		# from resource list
+		#
+		# in general can do something fancier to figure out the true 
+		# expiration time of the lamdbda
+		INVOKE:
+		    in 5 minutes from invoke time:
+			resource_list[ id ].remove( resource ) 
+		    
+		default:
+
+	    }
+
+
+	}
+
+
 
     }
 
@@ -315,3 +364,5 @@ Side Notes
 
 + to make sure user restrictions don't override org ones, first apply user ones and then have org ones overwrite any that user might have written (aka org restrictions applied last with sudo permissions )
 
++ If we keep the following abstraction, does anyone have any clever ideas about how we should go about defining
+what an "app" is? So far "apps" can hypothetically be defined by a user label or the user itself...

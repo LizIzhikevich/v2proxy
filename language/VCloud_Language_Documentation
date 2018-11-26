@@ -1,0 +1,411 @@
+Virtualization for the Cloud 
+[Temporary Language Name: VCloud]
+
+-------------------------------------------------------------------------------
+What is VCloud
+-------------------------------------------------------------------------------
+
+VCloud is a language that is used by an owner/orginization to implement 
+custom policies for applications/jobs that run in the cloud. Policies can be 
+attached to individual users within the orginizations as well as individual 
+applications/jobs. 
+
+Example policies that vcloud can be used to implement are:
+	- "limit destruction": ensure that cloud resources (data storage, 
+	    virtual machines, containers, etc.) can only be terminated by the
+	    user/app that created them
+	- "information flow control" : ensure that jobs can only talk to 
+	    particular domains
+
+VCloud can also implement organization-wide signals: functions that can be run on 
+the entire suite of currently running cloud resources. 
+
+Example signals that vcloud can be used to implement are:
+	- "CleanUp" : Print out the commands needed to terminate all cloud 
+		resources of a particular job 
+	- "Log" : Print out all resources associated with each user/job. 
+
+VCloud abstracts away policy logic from cloud resource and job implementation 
+details. In other words, it is possible for an administrator to implement 
+policies without any knowledge of which cloud platform/ resources the job will 
+be using and the particular details of those platforms/resources. 
+
+The VCloud abstraction hierarchy is the following: 
+
+    Policy
+    	|   
+    Resource
+	|
+    AWS S3, AWS EC2, Google Cloud Function, etc
+	|
+    HTTPRequest / HTTPResponse
+
+
+
+The rest of this document will cover the following:
+
+- How VCloud Cloud-Resource Abstraction Works
+- How VCloud Policies Work
+- How VCloud Proxy Interacts with Policies
+- How VCloud Signals Work
+- How VCloud Keeps Track of Resources
+- More Information/Examples
+- Related Work 
+
+-------------------------------------------------------------------------------
+How VCloud Cloud-Resource Abstraction Works
+-------------------------------------------------------------------------------
+
+Most VCloud custom policies are applied at run-time through a gateway/proxy in the 
+orginization's network. VCloud uses the proxy to check all passing HTTP Requests 
+to ensure that all requests are documented/ meet the orginization's policies. 
+Working at the HTTP layer allows VCloud to be completely extensible to any cloud
+service provider/ resource/ general HTTP request (not cloud-related). 
+VCloud also offers an abstraction to ease the development process of policies; 
+the policy developer does not need to know anything about how cloud resources 
+look/work at the HTTP layer. 
+
+Nonetheless, at the most fundamental level, 
+VCloud itself must understand how to translate an HTTPRequest into which action 
+is being performed on which resource type. 
+
+
+An example Amazon EC2 HTTP Request to invoke a virtual machine is the following:
+
+INVOKE: EC2 HTTP Request (POST):
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+54.239.28.168
+POST / HTTP/1.1
+Host ec2.us-east-1.amazonaws.com
+Accept-Encoding identity@
+
+Content-Type 0application/x-www-form-urlencoded; charset=utf-8 S
+
+User-Agent Eaws-cli/1.16.27 Python/3.6.5 Linux/4.4.0-134-generic botocore/1.12.17
+
+X-Amz-Date20181005T043106Z
+Authorization AWS4-HMAC-SHA256 
+Credential=AKIAVULDE4VLWTEM7MN3/20181005/us-east-1/ec2/aws4_request, 
+SignedHeaders=content-type;host;x-amz-date, 
+Signature=0963074b35c3fd3d9efc4e1d5f76383013131c78a526b4b4987338a7a743ceca
+Content-Length130 
+Action=RunInstances&Version=2016-11-15&ImageId=ami-0e6d2e8684d4ccb3e&
+InstanceType=t2.micro&KeyName=Liz%40mac&MinCount=1&MaxCount=1*�!
+//////////////////////////////////////////////////////
+
+Take note of the Host's domain name in line 3 (Host ec2.us-east-1.amazonaws.com) 
+and the Action type in the second-to-last line (Action=RunInstances). 
+Once an orginization's gateway intercepts the above HTTP Request, VCloud will 
+determine the request's pertaining resource and action with the following 
+methods:
+
+EC2_Resource Definition [Truncated]:
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+ec2 extends resource{
+
+    # ec2.us-east-1.amazonaws.com
+    checkMatch( request_host ): 
+	return ( request_host[ 0:request_host.find('.') ] == ‘ec2’ )
+
+    extractAction( request ) {
+	switch ( request[‘Action’] ) {
+
+	   RunInstances : return INVOKE
+	   TerminateInstances : return DELETE
+	    default: UNDEFINED
+
+	}		
+    }
+
+    key_name = request['KeyName']
+}
+//////////////////////////////////////////////////////
+
+For every cloud resource (e.g., lambda, ec2, google functions, etc. ) that 
+the organization would like to cater policies to, a resource definition for 
+that particular cloud resource must be defined to help VCloud understand the 
+HTTP layer. However, these definitions are completely abstracted from policy 
+logic and therefore are not mandatory to be developed/understood by a policy 
+writer. Moreover, it is feasible to imagine that a cloud provider 
+(AWS, Google, etc.) can provide the resource definitions themselves.
+
+An example of another resource definition is as follows:
+
+ 
+S3_Resource Definition [Truncated]:
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+s3 extends resource{
+
+    # johnsmith.s3.amazonaws.com
+    checkMatch( request_host ): return ( request_host[ request_host.find(‘.’): 
+			request_host.find(‘amazonaws’)] == ‘s3’ )
+
+    extractAction( request ) {
+	switch ( request[type] ) {
+
+	    POST: return INVOKE
+	    PUT: return INVOKE
+	    DELETE: return DELETE
+	    GET: return READ
+	    default: UNDEFINED
+			
+	}                       		
+    }  
+}
+//////////////////////////////////////////////////////
+
+In order to keep the concept of a general cloud resource agnostic to the 
+specific resource (e.g., ec2), an ec2 object, for example, inherits from 
+and implements a general parent resource class. The resource class implements 
+some of the following, which is agnostic to which particular cloud resource
+is being invoked:
+
+
+Resource Definition [Truncated]
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+resource {
+
+    owner = $user
+
+    host: request['Host']
+
+}
+//////////////////////////////////////////////////////
+
+-------------------------------------------------------------------------------
+How VCloud Policies Work
+-------------------------------------------------------------------------------
+
+
+With the resource abstraction in place, the a limitDestruction policy is 
+implemented as so: 
+
+limitDestruction policy
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+define policy resource limitDestruction {
+
+    if resource.owner != $user :
+
+	if resource.key_name contains "my_life's_work": 
+
+	    protect delete 
+
+    else : allow 
+
+}
+//////////////////////////////////////////////////////
+
+Notice how the policy uses the high-level resource abstraction and is thus 
+agnostic  to whether the resource being invoked is an amazon ec2 instance, 
+or any other  particular cloud resource.
+
+An example of another policy is implemented as follows:
+
+informationFlow policy
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# purpose: do not allow any resources in the org to talk to 
+# non-stanford domains
+define policy resource informationFlow {
+
+    if resource.host does not contain "www.stanford.edu/":
+	protect all_actions
+    else:
+	allow	
+
+} 
+//////////////////////////////////////////////////////
+
+-------------------------------------------------------------------------------
+How VCloud Proxy Interacts with Policies
+-------------------------------------------------------------------------------
+
+VCloud policies are used in a proxy that intercepts HTTP messages between the 
+user  and the cloud. Before sending off the HTTP Request, the proxy 
+speculatively applies the policy on the request resource and action. 
+If the policy blocks the requested action/resource, then the proxy will block 
+the request. 
+
+Concretely, the speculative application works in the following way:
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# subroutine: speculatively try out the action and see if proxy will approve it
+spec_apply( resource, action, app ) {
+
+    for policy in appliedPolicies:
+
+	if policy.invoke( resource, action, app ) != pass:
+	    return false
+    
+    return true	    
+
+}
+//////////////////////////////////////////////////////
+
+Notice how policies are treated as boolean conditions that the proxy expects
+to return true (Allowed). 
+
+
+The following is an example implementation of the proxy that sits in a 
+private network's gateway and monitors requests:
+
+Proxy_Request Definition
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+define proxy request {
+
+    resource_type = extractResourceType( request )  #e.g.,ec2,s3,lambda
+
+    action = resource_type.extractAction( request ) #e.g.,invoke,terminate,delete
+
+    resource = resource_type.assignResourceObject( action, request )
+
+    # speculatively try out the action and see if proxy will approve it
+    # spec_apply defined below 
+    allowed = spec_apply( resource, action, this.app )
+
+    if allowed:
+	deliver 
+
+    else:
+	block
+	send_response_back
+
+}
+
+//////////////////////////////////////////////////////
+
+The following is an example implementation of the proxy that sits in a 
+private network's gateway and monitors responses:
+
+Proxy_Response Definition
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+define proxy response {
+
+    resource_type = extractResourceType( request )  # e.g., ec2, s3, lambda
+
+    # assign response to a resource request 
+    resource = resource_awaiting_pool[resource_type]
+	
+    # update the resource list if request succeeded 
+    # implemented in resource class
+    apply( resource, action, this.app )
+
+}
+//////////////////////////////////////////////////////
+
+-------------------------------------------------------------------------------
+How VCloud Signals Work
+-------------------------------------------------------------------------------
+
+VCloud signals are very similar to policies, except for the fact that they are
+tied to the state of VCloud itself, rather than the state of the intercepting
+proxy. An example of a cleanUp signal is as follows:
+
+# purpose: print out the commands needed to terminate all cloud resources of this
+# particular app
+# differentiates b/w user invoked and app invoked (potentially output of program)
+# resources
+
+cleanUp Signal
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+define signal app cleanUp {
+
+    for id in app.resourcelist:
+
+	if app.resourceList[id].invoke_origin == app.owner: 
+	    print "client invoked: "
+	else:
+	    print "app invoked: "
+
+	print resource.terminate_command(id)
+	
+
+}
+//////////////////////////////////////////////////////
+
+-------------------------------------------------------------------------------
+How VCloud Keeps Track of Resources
+-------------------------------------------------------------------------------
+
+In the most general and common case, VCloud keeps a list of resource objects
+which keeps track of which resources are being used on behalf of which 
+users and apps. Resources are added and removed from the list based on which 
+HTTP Requests are intercepted at the proxy (INVOKE, DELETE, etc.)
+
+However, there are also situations in which cloud resources state can be 
+expected to change without any detection in the HTTP Layer: an 
+expiring stateless container invocation. In order to handle this situation,
+VCloud's resource abstraction allows to account for such edge cases in the 
+particular resource class itself. 
+
+For example, here is an overloaded implementation of the apply method which
+is called for every action that is intercepted in the response proxy. 
+In this example, an aws lambda resource is expected to expire
+5 minutes after invocation and thus takes this into account when a lambda
+gets invoked. 
+
+Lambda Apply Definition
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+    # when a lambda in particular gets invoked, take the following special additional steps
+    apply( action ) {
+	switch ( action ) {
+
+	    # set a default expiration time of 5 min to remove this resource
+	    # from resource list
+	    #
+	    # in general can do something fancier to figure out the true 
+	    # expiration time of the lamdbda
+	    INVOKE:
+	        in 5 minutes from invoke time:
+	    	resource_list[ id ].remove( resource ) 
+		    
+	    default:
+
+	}
+
+    }
+//////////////////////////////////////////////////////
+
+One can also go about implementing policies around resources in a
+similar fashion (e.g., include in the above apply code-excerpt a condition
+that termintates all resources of that type after 1 minute). 
+
+-------------------------------------------------------------------------------
+More Information/Examples
+-------------------------------------------------------------------------------
+
+For more thorough implementation examples, check out the following VCloud docs:
+
+- VCloud_More_Code : Defines more implementation details
+- VCloud_HTTPExamples : Shows example cloud requests (lamdba, s3, etc) at the 
+    HTTP Layer
+
+-------------------------------------------------------------------------------
+Related Work 
+-------------------------------------------------------------------------------
+
+AppArmor & SELinux : Labeling system/ name-based mandatory access controls for 
+Linux. Pattern matching is used to implement policies (e.g. audit deny 
+@{Home}/.* ). Can't be applied to applications that run in the cloud. 
+Moreover, exact pattern matching cannot be used to implement policies for the 
+cloud since it is not feasible to match entire HTTP Messages cannot be matched. 
+
+Eucalyptus : API for building AWS-compatible private and hybrid clouds. 
+Interface not designed to implement organization policies and is restrictive 
+to AWS specific components. 
+
+Kubernetes : system for deployment, scaling and management of containerized 
+applications. Policies and proxies are designed mostly for load-balancing 
+and not customizable policies (e.g. security). 
+
+Terraform : system for planning and deploying infrastructure in the cloud.
+Strives to be cloud-agnostic and can manage low-level networking of resources. 
+Interface not designed to implement custom policies that cloud services might 
+not support. Interface does not offer a clear abstraction between underlying 
+resources and the application being built (i.e., cloud-agnostic api is only 
+a wrapper and in order to implement low-level policies the policy writer 
+must have a deep understanding of the fundamentals of each cloud-provider 
+service). 
+
+RightScale Cloud Management : [TBD]
+
