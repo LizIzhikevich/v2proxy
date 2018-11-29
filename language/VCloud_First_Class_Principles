@@ -1,0 +1,79 @@
+VCloud First Class Principles
+-------------------------------------------------------------------------------
+
+This document contains an explicit list of actions that VCloud supports as 
+first class principles vs. actions that are expected to be built on top of 
+VCloud. 
+
+
+-------------------------------------------------------------------------------
+First Class Principles
+-------------------------------------------------------------------------------
+
+Policy Layer:
+----------------
+
+protect - abstraction in the language to impose a restriction a particular 
+action (i.e., writing to an s3 bucket)
+
+deliver - subroutine to allow proxy to deliver original request
+
+block - subroutine to allow proxy to block original request
+
+send_response_back - subroutine to allow proxy to send custom response
+
+spec_apply - subroutine that approves or disapproves the current action 
+(invoke, delete) VCloud has identified
+
+run - general method that allows to apply custom policies to a proxy
+
+proxy_request - logic to implement a proxy to put at the organization gateway
+for outgoing requests
+
+proxy_response - logic to implement a proxy to put at the organization gateway
+for incoming responses
+
+
+Resource Layer:
+----------------
+
+Resource Class - the organization/user though can add to this as they see fit
+	- resourceList
+	- owner
+	- checkMatch
+	- extractAction
+	- assignResourceObject
+	- apply : update resource in the resource list
+
+The following principles are actions that VCloud expects to be working with.
+They must be defined in all classes of type resource (s3, ec2) -
+INVOKE
+DELETE
+READ
+
+-------------------------------------------------------------------------------
+Actions Built on Top By Orginization
+-------------------------------------------------------------------------------
+
+Policy Layer:
+----------------
+Any policy/signal the orginization would like to enforce (limitDestruction, 
+cleanUp, etc) per user or app
+
+Resource Layer:
+----------------
+Any cloud resource expected to be used must be defined underneath the resource
+class (AWS EC2, AWS S3, Google Cloud Function, etc). 
+
+
+-------------------------------------------------------------------------------
+Actions Built on Top By User/Developer
+-------------------------------------------------------------------------------
+
+Policy Layer:
+----------------
+Any policy/signal the user would like to enforce (limitDestruction, 
+cleanUp, etc) for their app
+
+
+
