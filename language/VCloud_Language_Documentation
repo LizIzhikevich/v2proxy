@@ -5,9 +5,9 @@ Virtualization for the Cloud
 What is VCloud
 -------------------------------------------------------------------------------
 
-VCloud is a language that is used by an owner/orginization to implement 
+VCloud is a language that is used by an owner/organization to implement 
 custom policies for applications/jobs that run in the cloud. Policies can be 
-attached to individual users within the orginizations as well as individual 
+attached to individual users within the organizations as well as individual 
 applications/jobs. 
 
 Example policies that vcloud can be used to implement are:
@@ -57,8 +57,8 @@ How VCloud Cloud-Resource Abstraction Works
 -------------------------------------------------------------------------------
 
 Most VCloud custom policies are applied at run-time through a gateway/proxy in the 
-orginization's network. VCloud uses the proxy to check all passing HTTP Requests 
-to ensure that all requests are documented/ meet the orginization's policies. 
+organization's network. VCloud uses the proxy to check all passing HTTP Requests 
+to ensure that all requests are documented/ meet the organization's policies. 
 Working at the HTTP layer allows VCloud to be completely extensible to any cloud
 service provider/ resource/ general HTTP request (not cloud-related). 
 VCloud also offers an abstraction to ease the development process of policies; 
@@ -368,7 +368,7 @@ Lambda Apply Definition
 
 One can also go about implementing policies around resources in a
 similar fashion (e.g., include in the above apply code-excerpt a condition
-that termintates all resources of that type after 1 minute). 
+that terminates all resources of that type after 1 minute). 
 
 -------------------------------------------------------------------------------
 More Information/Examples
@@ -407,5 +407,9 @@ a wrapper and in order to implement low-level policies the policy writer
 must have a deep understanding of the fundamentals of each cloud-provider 
 service). 
 
-RightScale Cloud Management : [TBD]
+RightScale Cloud Management : cloud-agnostic, policy based software and api.
+Policies are mostly tied to the security policies that AWS offers 
+(IAM access, security groups). Cloud Workflow Language doesn’t touch the 
+HTTP layer and therefore does not seem obvious as to how to  implement 
+finer grained information flow control policies  
 
